@@ -12,6 +12,10 @@ const noteFrequencies = {
   B: 493.88,
 };
 
+
+
+
+
 function PitchTrainer() {
   // ALL state at the top
   const [currentNote, setCurrentNote] = useState("");
@@ -20,6 +24,7 @@ function PitchTrainer() {
   const [hasPlayed, setHasPlayed] = useState(false);
   const [answered, setAnswered] = useState(false);
   const [attempts, setAttempts] = useState(0);
+  const [mistakes, setMistakes] = useState({});
   
 
   //  tone generator
@@ -46,11 +51,25 @@ function PitchTrainer() {
 
   // generate + play note
   const generateNote = () => {
-    const random = notes[Math.floor(Math.random() * notes.length)];
-    setCurrentNote(random);
+    let noteToPlay;
+  
+    const mistakeKeys = Object.keys(mistakes);
+  
+    if (mistakeKeys.length > 0 && Math.random() < 0.6) {
+      // 60% chance: pick a weak note
+      noteToPlay =
+        mistakeKeys[Math.floor(Math.random() * mistakeKeys.length)];
+    } else {
+      // otherwise random
+      noteToPlay = notes[Math.floor(Math.random() * notes.length)];
+    }
+  
+    setCurrentNote(noteToPlay);
     setResult("");
     setAnswered(false);
     setHasPlayed(true);
+  
+    playTone(noteFrequencies[noteToPlay]);
   };
 
   const replayNote = () => {
@@ -64,8 +83,8 @@ function PitchTrainer() {
   const accuracy =
   attempts > 0 ? ((score / attempts) * 100).toFixed(1) : 0;
 
-  //  check answer
-  const checkAnswer = (note) => {
+  // check answer
+const checkAnswer = (note) => {
   if (!hasPlayed) {
     setResult("⚠️ Play a note first!");
     return;
@@ -74,41 +93,61 @@ function PitchTrainer() {
   if (answered) return;
 
   setAnswered(true);
-  setAttempts(attempts + 1); // ✅ count attempt
+  setAttempts(attempts + 1); // track attempt
 
   if (note === currentNote) {
     setResult("✅ Correct!");
     setScore(score + 1);
   } else {
     setResult(`❌ Wrong! It was ${currentNote}`);
+
+    //  track mistakes
+    setMistakes((prev) => ({
+      ...prev,
+      [currentNote]: (prev[currentNote] || 0) + 1,
+    }));
   }
 };
+return (
+  <div style={{ maxWidth: "400px", margin: "auto", textAlign: "center" }}>
+    <h2>Pitch Trainer</h2>
 
-  return (
-    <div>
-      <h2>Pitch Trainer</h2>
+    <button onClick={generateNote}>New Note</button>
+    <button onClick={replayNote}>Play Note</button>
 
-      <button onClick={generateNote}>New Note</button>
-      <button onClick={replayNote}>Play Note</button>
+    <div style={{ marginTop: "5px", padding: "10px 15px" }}>
+      {notes.map((note) => (
+        <button
+          key={note}
+          onClick={() => checkAnswer(note)}
+          style={{ margin: "5px", padding: "10px 15px" }}
+          disabled={answered}
+        >
+          {note}
+        </button>
+      ))}
+    </div>
 
-      <div style={{ marginTop: "10px" }}>
-        {notes.map((note) => (
-          <button
-            key={note}
-            onClick={() => checkAnswer(note)}
-            style={{ margin: "5px" }}
-          >
-            {note}
-          </button>
-        ))}
-      </div>
+    <p>{result}</p>
 
-      <p>{result}</p>
+    {/* ✅ STATS + FEEDBACK PANEL */}
+    <div style={{ marginTop: "20px" }}>
+      <h3>Stats</h3>
       <p>Score: {score}</p>
       <p>Attempts: {attempts}</p>
       <p>Accuracy: {accuracy}%</p>
+
+      <h3>Weak Areas</h3>
+      <ul>
+        {Object.entries(mistakes).map(([note, count]) => (
+          <li key={note}>
+            {note}: {count} mistakes
+          </li>
+        ))}
+      </ul>
     </div>
-  );
+  </div>
+);
 }
 
 export default PitchTrainer;
