@@ -68,6 +68,10 @@ function PitchTrainer() {
   const [rootPitch, setRootPitch] = useState(null);
   const [intervalMistakes, setIntervalMistakes] = useState({});
   const [difficulty, setDifficulty] = useState("easy");
+  const [recentAnswers, setRecentAnswers] = useState([]);
+  const [feedbackMessage, setFeedbackMessage] = useState(
+    "Complete a few exercises and I’ll personalise your practice."
+  );
 
   // Load saved data from browser storage
   useEffect(() => {
@@ -134,6 +138,19 @@ function PitchTrainer() {
     };
   };
 
+  const getCurrentNoteAnswers = () => {
+    if (mode !== "note") return baseNotes;
+  
+    // If a note has been generated, show notes in that same octave
+    if (currentPitch) {
+      return baseNotes.map((note) => `${note}${currentPitch.octave}`);
+    }
+  
+    // Before an exercise starts, show the default notes for the current difficulty
+    const defaultOctave = difficultySettings[difficulty].octaves[0];
+    return baseNotes.map((note) => `${note}${defaultOctave}`);
+  };
+
   const playTone = (frequency) => {
     const audioContext = new (window.AudioContext ||
       window.webkitAudioContext)();
@@ -169,9 +186,12 @@ function PitchTrainer() {
     let pitchToPlay;
 
     if (weightedNotes.length > 0 && Math.random() < 0.7) {
-      const weakNote =
+      const weakPitchLabel =
         weightedNotes[Math.floor(Math.random() * weightedNotes.length)];
-
+    
+      // Extract the note name from labels like "C4", "B5", "A3"
+      const weakNote = weakPitchLabel[0];
+    
       pitchToPlay = createRandomPitch(weakNote);
     } else {
       pitchToPlay = createRandomPitch();
@@ -209,6 +229,56 @@ function PitchTrainer() {
     setTimeout(() => playTone(secondFreq), 1000);
   };
 
+
+
+  const generateAdaptiveFeedback = (updatedRecentAnswers) => {
+    const recentMistakes = updatedRecentAnswers.filter((entry) => !entry.correct);
+  
+    if (recentMistakes.length < 3) {
+      return "Keep going — I’ll personalise your practice as more results come in.";
+    }
+  
+    const noteMistakes = recentMistakes.filter((entry) => entry.mode === "note");
+    const intervalMistakes = recentMistakes.filter(
+      (entry) => entry.mode === "interval"
+    );
+  
+    if (noteMistakes.length >= 3) {
+      const noteCounts = {};
+  
+      noteMistakes.forEach((entry) => {
+        const noteName = entry.target[0];
+        noteCounts[noteName] = (noteCounts[noteName] || 0) + 1;
+      });
+  
+      const weakestNote = Object.entries(noteCounts).sort(
+        (a, b) => b[1] - a[1]
+      )[0];
+  
+      if (weakestNote) {
+        return `You seem to be finding ${weakestNote[0]} notes difficult. I’ll prioritise these in upcoming exercises.`;
+      }
+    }
+  
+    if (intervalMistakes.length >= 2) {
+      const intervalCounts = {};
+  
+      intervalMistakes.forEach((entry) => {
+        intervalCounts[entry.target] = (intervalCounts[entry.target] || 0) + 1;
+      });
+  
+      const weakestInterval = Object.entries(intervalCounts).sort(
+        (a, b) => b[1] - a[1]
+      )[0];
+  
+      if (weakestInterval) {
+        return `You seem to be finding ${weakestInterval[0]} intervals difficult. I’ll include more of these for targeted practice.`;
+      }
+    }
+  
+    return "Good progress — I’m continuing to adjust your exercises based on your answers.";
+  };
+
   const replayNote = () => {
     if (mode === "note") {
       if (!currentPitch) return;
@@ -232,37 +302,74 @@ function PitchTrainer() {
       setResult("⚠️ Play an exercise first!");
       return;
     }
-
+  
     if (answered) return;
-
+  
     setAnswered(true);
     setAttempts(attempts + 1);
-
+  
+    let isCorrect = false;
+    let target = "";
+    let attemptData = {};
+  
     if (mode === "interval") {
-      if (answer === currentInterval.name) {
+      target = currentInterval.name;
+      isCorrect = answer === currentInterval.name;
+  
+      attemptData = {
+        mode: "interval",
+        target: currentInterval.name,
+        root: rootPitch ? rootPitch.label : null,
+        answer: answer,
+        correct: isCorrect,
+        difficulty: difficulty,
+        timestamp: Date.now(),
+      };
+  
+      if (isCorrect) {
         setResult("✅ Correct!");
         setScore(score + 1);
       } else {
         setResult(`❌ Wrong! It was ${currentInterval.name}`);
-
+  
         setIntervalMistakes((prev) => ({
           ...prev,
           [currentInterval.name]: (prev[currentInterval.name] || 0) + 1,
         }));
       }
     } else {
-      if (answer === currentNote) {
+      target = currentPitch.label;
+      isCorrect = answer === currentPitch.label;
+  
+      attemptData = {
+        mode: "note",
+        target: currentPitch.label,
+        note: currentPitch.note,
+        octave: currentPitch.octave,
+        answer: answer,
+        correct: isCorrect,
+        difficulty: difficulty,
+        timestamp: Date.now(),
+      };
+  
+      if (isCorrect) {
         setResult("✅ Correct!");
         setScore(score + 1);
       } else {
         setResult(`❌ Wrong! It was ${currentPitch.label}`);
-
+  
         setMistakes((prev) => ({
           ...prev,
-          [currentNote]: (prev[currentNote] || 0) + 1,
+          [currentPitch.label]: (prev[currentPitch.label] || 0) + 1,
         }));
       }
     }
+  
+    const updatedRecentAnswers = [...recentAnswers, attemptData].slice(-20);
+    setRecentAnswers(updatedRecentAnswers);
+  
+    const newFeedback = generateAdaptiveFeedback(updatedRecentAnswers);
+    setFeedbackMessage(newFeedback);
   };
 
   const resetProgress = () => {
@@ -302,15 +409,19 @@ function PitchTrainer() {
 
       <p>Mode: {mode === "note" ? "Note Recognition" : "Interval Training"}</p>
       <p>Difficulty: {difficultySettings[difficulty].label}</p>
+      
+      {mode === "interval" && rootPitch && (
+      <p>Reference Note / First Note: {rootPitch.label}</p>
+      )}
 
       <button onClick={generateNote}>New Note</button>
       <button onClick={replayNote}>Replay</button>
 
       <div style={{ marginTop: "10px", padding: "10px 15px" }}>
-        {(mode === "note"
-          ? baseNotes
-          : getAvailableIntervals().map((interval) => interval.name)
-        ).map((item) => (
+          {(mode === "note"
+            ? getCurrentNoteAnswers()
+            : getAvailableIntervals().map((interval) => interval.name)
+          ).map((item) => (
           <button
             key={item}
             onClick={() => checkAnswer(item)}
@@ -325,6 +436,8 @@ function PitchTrainer() {
       <p>{result}</p>
 
       <div style={{ marginTop: "20px" }}>
+        <h3>Personalised Feedback</h3>
+        <p>{feedbackMessage}</p>
         <h3>Stats</h3>
         <p>Score: {score}</p>
         <p>Attempts: {attempts}</p>
