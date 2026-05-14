@@ -54,6 +54,40 @@ const difficultySettings = {
   },
 };
 
+
+const helperCharacters = [
+  {
+    levelRequired: 1,
+    name: "Melody",
+    emoji: "🌿🎧",
+    description: "Your first music helper.",
+  },
+  {
+    levelRequired: 2,
+    name: "Bongo",
+    emoji: "🐸🥁",
+    description: "Keeps the beat while you practise.",
+  },
+  {
+    levelRequired: 3,
+    name: "Pip",
+    emoji: "🐱🎵",
+    description: "Helps you spot tricky notes.",
+  },
+  {
+    levelRequired: 5,
+    name: "Nova",
+    emoji: "🚀🎶",
+    description: "Explores harder sounds with you.",
+  },
+  {
+    levelRequired: 8,
+    name: "Draco",
+    emoji: "🐉🎼",
+    description: "A master helper for advanced practice.",
+  },
+];
+
 function PitchTrainer() {
   const [currentNote, setCurrentNote] = useState("");
   const [currentPitch, setCurrentPitch] = useState(null);
@@ -462,10 +496,15 @@ function PitchTrainer() {
     return "Keep going! Your helper is watching what feels tricky and will help you practise it 🎵";
   };
   
-  const helperCharacter = {
-    name: "Melody",
-    emoji: "🌿🎧",
-  };
+  const helperCharacter =
+  helperCharacters
+    .filter((helper) => level >= helper.levelRequired)
+    .sort((a, b) => b.levelRequired - a.levelRequired)[0] ||
+  helperCharacters[0];
+
+const nextHelper = helperCharacters.find(
+  (helper) => helper.levelRequired > level
+);
   
   const styles = {
     page: {
@@ -970,15 +1009,88 @@ function PitchTrainer() {
            </div>
           </div>
   
-            <div style={styles.sideCard}>
-              <h2>
-                {helperCharacter.emoji}{" "}
-                {isChildMode ? `${helperCharacter.name} Says` : "Personalised Feedback"}
-              </h2>
-              <p style={{ lineHeight: "1.5", fontSize: "15px" }}>
-                {getFeedbackMessage()}
-              </p>
-            </div>
+          <div style={styles.sideCard}>
+          <h2>
+           {isChildMode
+             ? `${helperCharacter.emoji} ${helperCharacter.name} Says`
+              : "Personalised Feedback"}
+          </h2>
+
+         {isChildMode && (
+           <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "10px" }}>
+              {helperCharacter.description}
+           </p>
+        )}
+
+         <p style={{ lineHeight: "1.5", fontSize: "15px" }}>
+            {getFeedbackMessage()}
+          </p>
+
+          {isChildMode && nextHelper && (
+           <div
+             style={{
+               marginTop: "14px",
+               padding: "12px",
+               borderRadius: "14px",
+               backgroundColor: "#ecfdf5",
+               border: "1px solid #bbf7d0",
+             }}
+           >
+             <strong>Next helper:</strong>
+             <p style={{ margin: "6px 0 0" }}>
+               {nextHelper.emoji} {nextHelper.name} unlocks at Level{" "}
+               {nextHelper.levelRequired}
+             </p>
+           </div>
+         )}
+
+         {isChildMode && !nextHelper && (
+            <div
+              style={{
+              marginTop: "14px",
+              padding: "12px",
+              borderRadius: "14px",
+              backgroundColor: "#ecfdf5",
+              border: "1px solid #bbf7d0",
+            }}
+          >
+            <strong>All helpers unlocked!</strong>
+            <p style={{ margin: "6px 0 0" }}>You have collected every helper 🎉</p>
+          </div>
+        )}
+      </div>
+
+      {isChildMode && (
+  <div style={styles.sideCard}>
+    <h2>Helper Collection</h2>
+
+    {helperCharacters.map((helper) => {
+      const unlocked = level >= helper.levelRequired;
+
+      return (
+        <div
+          key={helper.name}
+          style={{
+            padding: "10px",
+            marginBottom: "8px",
+            borderRadius: "12px",
+            backgroundColor: unlocked ? "#dcfce7" : "#f1f5f9",
+            opacity: unlocked ? 1 : 0.55,
+          }}
+        >
+          <strong>
+            {helper.emoji} {helper.name}
+          </strong>
+          <p style={{ margin: "4px 0 0", fontSize: "14px" }}>
+            {unlocked
+              ? "Unlocked!"
+              : `Unlocks at Level ${helper.levelRequired}`}
+          </p>
+        </div>
+      );
+    })}
+  </div>
+)}
   
             {!isChildMode && (
               <div style={styles.sideCard}>
