@@ -69,12 +69,14 @@ function PitchTrainer() {
   const [intervalMistakes, setIntervalMistakes] = useState({});
   const [difficulty, setDifficulty] = useState("easy");
   const [recentAnswers, setRecentAnswers] = useState([]);
-  const [feedbackMessage, setFeedbackMessage] = useState(
-    "Complete a few exercises and I’ll personalise your practice."
-  );
+  const [feedbackMessage, setFeedbackMessage] = useState("Complete a few exercises and I'll personalise your practice.");
   const [lastGeneratedNotes, setLastGeneratedNotes] = useState([]);
   const [lastGeneratedIntervals, setLastGeneratedIntervals] = useState([]);
   const [uiMode, setUiMode] = useState(null);
+  const [xp, setXp] = useState(0);
+  const [level, setLevel] = useState(1);
+  const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
 
   // Load saved data from browser storage
   useEffect(() => {
@@ -585,6 +587,21 @@ function PitchTrainer() {
       fontSize: "17px",
     },
   };
+
+
+  const calculateLevel = (newXp) => {
+    return Math.floor(newXp / 100) + 1;
+  };
+  
+  const addXp = (amount) => {
+    setXp((prevXp) => {
+      const newXp = prevXp + amount;
+      setLevel(calculateLevel(newXp));
+      return newXp;
+    });
+  };
+
+
   const checkAnswer = (answer) => {
     if (!hasPlayed) {
       setResult("⚠️ Play an exercise first!");
@@ -597,11 +614,9 @@ function PitchTrainer() {
     setAttempts(attempts + 1);
   
     let isCorrect = false;
-    let target = "";
     let attemptData = {};
   
     if (mode === "interval") {
-      target = currentInterval.name;
       isCorrect = answer === currentInterval.name;
   
       attemptData = {
@@ -617,8 +632,24 @@ function PitchTrainer() {
       if (isCorrect) {
         setResult("✅ Correct!");
         setScore(score + 1);
+  
+        const newStreak = streak + 1;
+        setStreak(newStreak);
+  
+        if (newStreak > bestStreak) {
+          setBestStreak(newStreak);
+        }
+  
+        if (newStreak > 0 && newStreak % 3 === 0) {
+          addXp(15);
+        } else {
+          addXp(10);
+        }
       } else {
         setResult(`❌ Wrong! It was ${currentInterval.name}`);
+  
+        setStreak(0);
+        addXp(2);
   
         setIntervalMistakes((prev) => ({
           ...prev,
@@ -626,7 +657,6 @@ function PitchTrainer() {
         }));
       }
     } else {
-      target = currentPitch.label;
       isCorrect = answer === currentPitch.label;
   
       attemptData = {
@@ -643,8 +673,24 @@ function PitchTrainer() {
       if (isCorrect) {
         setResult("✅ Correct!");
         setScore(score + 1);
+  
+        const newStreak = streak + 1;
+        setStreak(newStreak);
+  
+        if (newStreak > bestStreak) {
+          setBestStreak(newStreak);
+        }
+  
+        if (newStreak > 0 && newStreak % 3 === 0) {
+          addXp(15);
+        } else {
+          addXp(10);
+        }
       } else {
         setResult(`❌ Wrong! It was ${currentPitch.label}`);
+  
+        setStreak(0);
+        addXp(2);
   
         setMistakes((prev) => ({
           ...prev,
@@ -672,6 +718,10 @@ function PitchTrainer() {
     setCurrentPitch(null);
     setCurrentInterval(null);
     setRootPitch(null);
+    setXp(0);
+    setLevel(1);
+    setStreak(0);
+    setBestStreak(0);
 
     localStorage.removeItem("score");
     localStorage.removeItem("attempts");
@@ -857,24 +907,68 @@ function PitchTrainer() {
           </main>
   
           <aside>
-            <div style={styles.sideCard}>
-              <h2>🏆 {isChildMode ? "Your Progress" : "Progress"}</h2>
-  
-              <div style={styles.statRow}>
-                <span>⭐ Score</span>
-                <strong>{score}</strong>
-              </div>
-  
-              <div style={styles.statRow}>
-                <span>🎯 Attempts</span>
-                <strong>{attempts}</strong>
-              </div>
-  
-              <div style={styles.statRow}>
-                <span>📈 Accuracy</span>
-                <strong>{accuracy}%</strong>
-              </div>
+          <div style={styles.sideCard}>
+            <h2>🏆 {isChildMode ? "Your Progress" : "Progress"}</h2>
+
+            <div style={styles.statRow}>
+              <span>⭐ Score</span>
+             <strong>{score}</strong>
+           </div>
+
+           <div style={styles.statRow}>
+             <span>🎯 Attempts</span>
+             <strong>{attempts}</strong>
             </div>
+
+           <div style={styles.statRow}>
+              <span>📈 Accuracy</span>
+              <strong>{accuracy}%</strong>
+            </div>
+
+            <div style={styles.statRow}>
+             <span>✨ XP</span>
+             <strong>{xp}</strong>
+           </div>
+
+            <div style={styles.statRow}>
+             <span>🏅 Level</span>
+             <strong>{level}</strong>
+            </div>
+
+            <div style={styles.statRow}>
+             <span>🔥 Streak</span>
+             <strong>{streak}</strong>
+           </div>
+
+           <div style={styles.statRow}>
+              <span>🏆 Best Streak</span>
+              <strong>{bestStreak}</strong>
+            </div>
+
+            <div style={{ marginTop: "16px", textAlign: "left" }}>
+             <p style={{ marginBottom: "6px" }}>
+               XP to next level: {xp % 100}/100
+             </p>
+
+             <div
+                style={{
+                 width: "100%",
+                  height: "14px",
+                  backgroundColor: "#dcfce7",
+                 borderRadius: "999px",
+                 overflow: "hidden",
+               }}
+             >
+                <div
+                  style={{
+                    width: `${xp % 100}%`,
+                   height: "100%",
+                    background: "linear-gradient(135deg, #22c55e, #15803d)",
+                 }}
+                />
+             </div>
+           </div>
+          </div>
   
             <div style={styles.sideCard}>
               <h2>
