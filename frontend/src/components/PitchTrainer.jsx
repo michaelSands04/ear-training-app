@@ -39,17 +39,17 @@ const difficultySettings = {
   },
   medium: {
     label: "Medium",
-    octaves: [3, 4, 5],
+    octaves: [4, 5],
     allowedIntervalDifficulties: ["easy", "medium"],
   },
   hard: {
     label: "Hard",
-    octaves: [2, 3, 4, 5, 6],
+    octaves: [3, 4, 5,],
     allowedIntervalDifficulties: ["easy", "medium", "hard"],
   },
   expert: {
     label: "Expert",
-    octaves: [1, 2, 3, 4, 5, 6, 7],
+    octaves: [2, 3, 4, 5,],
     allowedIntervalDifficulties: ["easy", "medium", "hard", "expert"],
   },
 };
@@ -335,7 +335,6 @@ function PitchTrainer() {
     let selectedIntervalName = null;
     let interval = null;
   
-    // 55% chance to use a recent weak interval
     if (recentWeakIntervals.length > 0 && Math.random() < 0.55) {
       const shuffledWeakIntervals = [...recentWeakIntervals].sort(
         () => Math.random() - 0.5
@@ -346,7 +345,6 @@ function PitchTrainer() {
       );
     }
   
-    // If no weak interval was selected, choose a varied random interval
     if (!selectedIntervalName) {
       const availableIntervalNames = availableIntervals
         .map((item) => item.name)
@@ -367,7 +365,32 @@ function PitchTrainer() {
       availableIntervals.find((item) => item.name === selectedIntervalName) ||
       availableIntervals[Math.floor(Math.random() * availableIntervals.length)];
   
-    const root = createRandomPitch();
+    const maxAllowedOctave = Math.max(...difficultySettings[difficulty].octaves);
+    const maxAllowedMidi = (maxAllowedOctave + 1) * 12 + 11; // B of max octave
+  
+    let root = null;
+    let attempts = 0;
+  
+    do {
+      const candidateRoot = createRandomPitch();
+  
+      const rootMidi =
+        (candidateRoot.octave + 1) * 12 + noteSemitones[candidateRoot.note];
+  
+      const secondMidi = rootMidi + interval.semitones;
+  
+      if (secondMidi <= maxAllowedMidi) {
+        root = candidateRoot;
+        break;
+      }
+  
+      attempts++;
+    } while (attempts < 30);
+  
+    // fallback if it somehow fails after 30 attempts
+    if (!root) {
+      root = createRandomPitch();
+    }
   
     const secondFreq = getFrequencyFromSemitone(
       root.frequency,
@@ -380,9 +403,7 @@ function PitchTrainer() {
     setAnswered(false);
     setHasPlayed(true);
   
-    setLastGeneratedIntervals((prev) =>
-      [...prev, interval.name].slice(-5)
-    );
+    setLastGeneratedIntervals((prev) => [...prev, interval.name].slice(-5));
   
     playTone(root.frequency);
     setTimeout(() => playTone(secondFreq), 1000);
@@ -390,39 +411,47 @@ function PitchTrainer() {
 
 
 
-  const generateAdaptiveFeedback = (updatedRecentAnswers) => {
-    const recentMistakes = updatedRecentAnswers.filter((entry) => !entry.correct);
+  const generateAdaptiveFeedback = (answers, activeMode) => {
+    const recentMistakes = answers.filter((entry) => !entry.correct);
   
-    if (recentMistakes.length < 3) {
-      return "Keep going — I’ll personalise your practice as more results come in.";
+    if (answers.length < 3) {
+      return "Complete a few more exercises and I’ll start personalising your practice.";
+    }
+  
+    if (recentMistakes.length === 0 && answers.length >= 5) {
+      return "Your recent answers are strong. You may be ready to increase the difficulty.";
     }
   
     const noteMistakes = recentMistakes.filter((entry) => entry.mode === "note");
-    const intervalMistakes = recentMistakes.filter(
+  
+    const intervalMistakesOnly = recentMistakes.filter(
       (entry) => entry.mode === "interval"
     );
   
-    if (noteMistakes.length >= 3) {
+    const getWeakestNoteFeedback = () => {
+      if (noteMistakes.length < 2) return null;
+  
       const noteCounts = {};
   
       noteMistakes.forEach((entry) => {
-        const noteName = entry.target[0];
-        noteCounts[noteName] = (noteCounts[noteName] || 0) + 1;
+        noteCounts[entry.note] = (noteCounts[entry.note] || 0) + 1;
       });
   
       const weakestNote = Object.entries(noteCounts).sort(
         (a, b) => b[1] - a[1]
       )[0];
   
-      if (weakestNote) {
-        return `You seem to be finding ${weakestNote[0]} notes difficult. I’ll prioritise these in upcoming exercises.`;
-      }
-    }
+      if (!weakestNote) return null;
   
-    if (intervalMistakes.length >= 2) {
+      return `You seem to be finding ${weakestNote[0]} notes difficult. I’ll include more of these while still mixing in other practice.`;
+    };
+  
+    const getWeakestIntervalFeedback = () => {
+      if (intervalMistakesOnly.length < 2) return null;
+  
       const intervalCounts = {};
   
-      intervalMistakes.forEach((entry) => {
+      intervalMistakesOnly.forEach((entry) => {
         intervalCounts[entry.target] = (intervalCounts[entry.target] || 0) + 1;
       });
   
@@ -430,12 +459,40 @@ function PitchTrainer() {
         (a, b) => b[1] - a[1]
       )[0];
   
-      if (weakestInterval) {
-        return `You seem to be finding ${weakestInterval[0]} intervals difficult. I’ll include more of these for targeted practice.`;
-      }
+      if (!weakestInterval) return null;
+  
+      return `You seem to be finding ${weakestInterval[0]} intervals difficult. I’ll include more of these while still mixing in other practice.`;
+    };
+  
+    // Important bit: prioritise feedback based on the current mode
+    if (activeMode === "interval") {
+      const intervalFeedback = getWeakestIntervalFeedback();
+      if (intervalFeedback) return intervalFeedback;
+  
+      const noteFeedback = getWeakestNoteFeedback();
+      if (noteFeedback) return noteFeedback;
     }
   
-    return "Good progress — I’m continuing to adjust your exercises based on your answers.";
+    if (activeMode === "note") {
+      const noteFeedback = getWeakestNoteFeedback();
+      if (noteFeedback) return noteFeedback;
+  
+      const intervalFeedback = getWeakestIntervalFeedback();
+      if (intervalFeedback) return intervalFeedback;
+    }
+  
+    const recentCorrect = answers.filter((entry) => entry.correct).length;
+    const recentAccuracy = (recentCorrect / answers.length) * 100;
+  
+    if (recentAccuracy >= 80 && answers.length >= 5) {
+      return "Your recent accuracy is strong. You may be ready for a harder difficulty.";
+    }
+  
+    if (recentAccuracy < 50 && answers.length >= 5) {
+      return "Your recent accuracy has dropped. I’ll keep focusing on your weaker areas for now.";
+    }
+  
+    return "Good progress. I’m continuing to adjust your exercises based on your answers.";
   };
 
   const replayNote = () => {
@@ -685,7 +742,7 @@ const nextHelper = helperCharacters.find(
           addXp(10);
         }
       } else {
-        setResult(`❌ Wrong! It was ${currentInterval.name}`);
+        setResult(`⚠️ Not Quite, It was ${currentInterval.name}`);
   
         setStreak(0);
         addXp(2);
@@ -726,7 +783,7 @@ const nextHelper = helperCharacters.find(
           addXp(10);
         }
       } else {
-        setResult(`❌ Wrong! It was ${currentPitch.label}`);
+        setResult(`⚠️ Not Quite, It was ${currentPitch.label}`);
   
         setStreak(0);
         addXp(2);
@@ -741,7 +798,7 @@ const nextHelper = helperCharacters.find(
     const updatedRecentAnswers = [...recentAnswers, attemptData].slice(-20);
     setRecentAnswers(updatedRecentAnswers);
   
-    const newFeedback = generateAdaptiveFeedback(updatedRecentAnswers);
+    const newFeedback = generateAdaptiveFeedback(updatedRecentAnswers, mode);
     setFeedbackMessage(newFeedback);
   };
 
@@ -965,7 +1022,7 @@ const nextHelper = helperCharacters.find(
             </div>
 
             <div style={styles.statRow}>
-             <span>✨ XP</span>
+             <span>✨ Experience</span>
              <strong>{xp}</strong>
            </div>
 
@@ -986,7 +1043,7 @@ const nextHelper = helperCharacters.find(
 
             <div style={{ marginTop: "16px", textAlign: "left" }}>
              <p style={{ marginBottom: "6px" }}>
-               XP to next level: {xp % 100}/100
+               Experience to next level: {xp % 100}/100
              </p>
 
              <div
