@@ -111,6 +111,7 @@ function PitchTrainer() {
   const [level, setLevel] = useState(1);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
+  const [progressLoaded, setProgressLoaded] = useState(false);
 
   // Load saved data from browser storage
   useEffect(() => {
@@ -119,27 +120,72 @@ function PitchTrainer() {
     const savedMistakes = localStorage.getItem("mistakes");
     const savedIntervalMistakes = localStorage.getItem("intervalMistakes");
     const savedDifficulty = localStorage.getItem("difficulty");
-
-    if (savedScore) setScore(Number(savedScore));
-    if (savedAttempts) setAttempts(Number(savedAttempts));
-    if (savedMistakes) setMistakes(JSON.parse(savedMistakes));
-    if (savedIntervalMistakes) {
+  
+    const savedXp = localStorage.getItem("xp");
+    const savedLevel = localStorage.getItem("level");
+    const savedStreak = localStorage.getItem("streak");
+    const savedBestStreak = localStorage.getItem("bestStreak");
+  
+    const savedRecentAnswers = localStorage.getItem("recentAnswers");
+    const savedFeedbackMessage = localStorage.getItem("feedbackMessage");
+  
+    if (savedScore !== null) setScore(Number(savedScore));
+    if (savedAttempts !== null) setAttempts(Number(savedAttempts));
+    if (savedMistakes !== null) setMistakes(JSON.parse(savedMistakes));
+  
+    if (savedIntervalMistakes !== null) {
       setIntervalMistakes(JSON.parse(savedIntervalMistakes));
     }
-    if (savedDifficulty) setDifficulty(savedDifficulty);
+  
+    if (savedDifficulty !== null) setDifficulty(savedDifficulty);
+  
+    if (savedXp !== null) setXp(Number(savedXp));
+    if (savedLevel !== null) setLevel(Number(savedLevel));
+    if (savedStreak !== null) setStreak(Number(savedStreak));
+    if (savedBestStreak !== null) setBestStreak(Number(savedBestStreak));
+  
+    if (savedRecentAnswers !== null) {
+      setRecentAnswers(JSON.parse(savedRecentAnswers));
+    }
+  
+    if (savedFeedbackMessage !== null) {
+      setFeedbackMessage(savedFeedbackMessage);
+    }
+  
+    setProgressLoaded(true);
   }, []);
 
   // Save progress to browser storage
   useEffect(() => {
-    localStorage.setItem("score", score);
-    localStorage.setItem("attempts", attempts);
+    if (!progressLoaded) return;
+  
+    localStorage.setItem("score", String(score));
+    localStorage.setItem("attempts", String(attempts));
     localStorage.setItem("mistakes", JSON.stringify(mistakes));
     localStorage.setItem("intervalMistakes", JSON.stringify(intervalMistakes));
     localStorage.setItem("difficulty", difficulty);
-  }, [score, attempts, mistakes, intervalMistakes, difficulty]);
-
-  const accuracy = attempts > 0 ? ((score / attempts) * 100).toFixed(1) : 0;
-
+  
+    localStorage.setItem("xp", String(xp));
+    localStorage.setItem("level", String(level));
+    localStorage.setItem("streak", String(streak));
+    localStorage.setItem("bestStreak", String(bestStreak));
+  
+    localStorage.setItem("recentAnswers", JSON.stringify(recentAnswers));
+    localStorage.setItem("feedbackMessage", feedbackMessage);
+  }, [
+    progressLoaded,
+    score,
+    attempts,
+    mistakes,
+    intervalMistakes,
+    difficulty,
+    xp,
+    level,
+    streak,
+    bestStreak,
+    recentAnswers,
+    feedbackMessage,
+  ]);
   // Converts notes such as C4, A5, B2 into frequencies using A4 = 440Hz
   const getFrequency = (note, octave) => {
     const midiNumber = (octave + 1) * 12 + noteSemitones[note];
@@ -517,6 +563,9 @@ function PitchTrainer() {
 
   const isChildMode = uiMode === "child";
 
+  const accuracy =
+  attempts > 0 ? ((score / attempts) * 100).toFixed(1) : 0;
+
   const getResultMessage = () => {
     if (!result) return "";
   
@@ -818,11 +867,18 @@ const nextHelper = helperCharacters.find(
     setLevel(1);
     setStreak(0);
     setBestStreak(0);
+    setFeedbackMessage("Complete a Few Exercises and I'll Peronalise your practice.")
 
     localStorage.removeItem("score");
     localStorage.removeItem("attempts");
     localStorage.removeItem("mistakes");
     localStorage.removeItem("intervalMistakes");
+    localStorage.removeItem("xp");
+    localStorage.removeItem("level");
+    localStorage.removeItem("streak");
+    localStorage.removeItem("bestStreak");
+    localStorage.removeItem("recentAnswers");
+    localStorage.removeItem("feedbackMessage");
   };
 
   const getModeButtonStyle = (buttonMode) => {
