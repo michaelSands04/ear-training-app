@@ -54,6 +54,13 @@ const difficultySettings = {
   },
 };
 
+const accountName = "localAccount";
+
+const defaultProfiles = [
+  { id: "dad", name: "Dad", emoji: "👨" },
+  { id: "mum", name: "Mum", emoji: "👩" },
+  { id: "son", name: "Son", emoji: "🧒" },
+];
 
 const helperCharacters = [
   {
@@ -112,68 +119,93 @@ function PitchTrainer() {
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [progressLoaded, setProgressLoaded] = useState(false);
+  const [profiles, setProfiles] = useState(defaultProfiles);
+  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [newProfileName, setNewProfileName] = useState("");
 
   // Load saved data from browser storage
   useEffect(() => {
-    const savedScore = localStorage.getItem("score");
-    const savedAttempts = localStorage.getItem("attempts");
-    const savedMistakes = localStorage.getItem("mistakes");
-    const savedIntervalMistakes = localStorage.getItem("intervalMistakes");
-    const savedDifficulty = localStorage.getItem("difficulty");
+    if (!selectedProfile) return;
   
-    const savedXp = localStorage.getItem("xp");
-    const savedLevel = localStorage.getItem("level");
-    const savedStreak = localStorage.getItem("streak");
-    const savedBestStreak = localStorage.getItem("bestStreak");
+    setProgressLoaded(false);
   
-    const savedRecentAnswers = localStorage.getItem("recentAnswers");
-    const savedFeedbackMessage = localStorage.getItem("feedbackMessage");
+    const key = (name) => `${accountName}_${selectedProfile}_${name}`;
   
-    if (savedScore !== null) setScore(Number(savedScore));
-    if (savedAttempts !== null) setAttempts(Number(savedAttempts));
-    if (savedMistakes !== null) setMistakes(JSON.parse(savedMistakes));
+    const savedScore = localStorage.getItem(key("score"));
+    const savedAttempts = localStorage.getItem(key("attempts"));
+    const savedMistakes = localStorage.getItem(key("mistakes"));
+    const savedIntervalMistakes = localStorage.getItem(key("intervalMistakes"));
+    const savedDifficulty = localStorage.getItem(key("difficulty"));
   
-    if (savedIntervalMistakes !== null) {
-      setIntervalMistakes(JSON.parse(savedIntervalMistakes));
-    }
+    const savedXp = localStorage.getItem(key("xp"));
+    const savedLevel = localStorage.getItem(key("level"));
+    const savedStreak = localStorage.getItem(key("streak"));
+    const savedBestStreak = localStorage.getItem(key("bestStreak"));
   
-    if (savedDifficulty !== null) setDifficulty(savedDifficulty);
+    const savedRecentAnswers = localStorage.getItem(key("recentAnswers"));
+    const savedFeedbackMessage = localStorage.getItem(key("feedbackMessage"));
   
-    if (savedXp !== null) setXp(Number(savedXp));
-    if (savedLevel !== null) setLevel(Number(savedLevel));
-    if (savedStreak !== null) setStreak(Number(savedStreak));
-    if (savedBestStreak !== null) setBestStreak(Number(savedBestStreak));
+    setScore(savedScore !== null ? Number(savedScore) : 0);
+    setAttempts(savedAttempts !== null ? Number(savedAttempts) : 0);
+    setMistakes(savedMistakes !== null ? JSON.parse(savedMistakes) : {});
   
-    if (savedRecentAnswers !== null) {
-      setRecentAnswers(JSON.parse(savedRecentAnswers));
-    }
+    setIntervalMistakes(
+      savedIntervalMistakes !== null ? JSON.parse(savedIntervalMistakes) : {}
+    );
   
-    if (savedFeedbackMessage !== null) {
-      setFeedbackMessage(savedFeedbackMessage);
-    }
+    setDifficulty(savedDifficulty !== null ? savedDifficulty : "easy");
+  
+    setXp(savedXp !== null ? Number(savedXp) : 0);
+    setLevel(savedLevel !== null ? Number(savedLevel) : 1);
+    setStreak(savedStreak !== null ? Number(savedStreak) : 0);
+    setBestStreak(savedBestStreak !== null ? Number(savedBestStreak) : 0);
+  
+    setRecentAnswers(
+      savedRecentAnswers !== null ? JSON.parse(savedRecentAnswers) : []
+    );
+  
+    setFeedbackMessage(
+      savedFeedbackMessage !== null
+        ? savedFeedbackMessage
+        : "Complete a few exercises and I'll personalise your practice."
+    );
+  
+    setCurrentNote("");
+    setCurrentPitch(null);
+    setCurrentInterval(null);
+    setRootPitch(null);
+    setResult("");
+    setAnswered(false);
+    setHasPlayed(false);
   
     setProgressLoaded(true);
-  }, []);
+  }, [selectedProfile]);
 
   // Save progress to browser storage
   useEffect(() => {
-    if (!progressLoaded) return;
+    if (!progressLoaded || !selectedProfile) return;
   
-    localStorage.setItem("score", String(score));
-    localStorage.setItem("attempts", String(attempts));
-    localStorage.setItem("mistakes", JSON.stringify(mistakes));
-    localStorage.setItem("intervalMistakes", JSON.stringify(intervalMistakes));
-    localStorage.setItem("difficulty", difficulty);
+    const key = (name) => `${accountName}_${selectedProfile}_${name}`;
   
-    localStorage.setItem("xp", String(xp));
-    localStorage.setItem("level", String(level));
-    localStorage.setItem("streak", String(streak));
-    localStorage.setItem("bestStreak", String(bestStreak));
+    localStorage.setItem(key("score"), String(score));
+    localStorage.setItem(key("attempts"), String(attempts));
+    localStorage.setItem(key("mistakes"), JSON.stringify(mistakes));
+    localStorage.setItem(
+      key("intervalMistakes"),
+      JSON.stringify(intervalMistakes)
+    );
+    localStorage.setItem(key("difficulty"), difficulty);
   
-    localStorage.setItem("recentAnswers", JSON.stringify(recentAnswers));
-    localStorage.setItem("feedbackMessage", feedbackMessage);
+    localStorage.setItem(key("xp"), String(xp));
+    localStorage.setItem(key("level"), String(level));
+    localStorage.setItem(key("streak"), String(streak));
+    localStorage.setItem(key("bestStreak"), String(bestStreak));
+  
+    localStorage.setItem(key("recentAnswers"), JSON.stringify(recentAnswers));
+    localStorage.setItem(key("feedbackMessage"), feedbackMessage);
   }, [
     progressLoaded,
+    selectedProfile,
     score,
     attempts,
     mistakes,
@@ -186,6 +218,20 @@ function PitchTrainer() {
     recentAnswers,
     feedbackMessage,
   ]);
+
+  useEffect(() => {
+    const savedProfiles = localStorage.getItem(`${accountName}_profiles`);
+  
+    if (savedProfiles) {
+      setProfiles(JSON.parse(savedProfiles));
+    }
+  }, []);
+  
+  useEffect(() => {
+    localStorage.setItem(`${accountName}_profiles`, JSON.stringify(profiles));
+  }, [profiles]);
+
+
   // Converts notes such as C4, A5, B2 into frequencies using A4 = 440Hz
   const getFrequency = (note, octave) => {
     const midiNumber = (octave + 1) * 12 + noteSemitones[note];
@@ -281,6 +327,9 @@ function PitchTrainer() {
       Array(count).fill(note)
     );
   };
+
+
+  
 
 
 
@@ -851,6 +900,35 @@ const nextHelper = helperCharacters.find(
     setFeedbackMessage(newFeedback);
   };
 
+
+  const createProfile = () => {
+    const trimmedName = newProfileName.trim();
+  
+    if (!trimmedName) {
+      alert("Please enter a profile name.");
+      return;
+    }
+  
+    const id = trimmedName.toLowerCase().replace(/\s+/g, "-");
+  
+    const profileExists = profiles.some((profile) => profile.id === id);
+  
+    if (profileExists) {
+      alert("A profile with this name already exists.");
+      return;
+    }
+  
+    const newProfile = {
+      id,
+      name: trimmedName,
+      emoji: "🎧",
+    };
+  
+    setProfiles((prev) => [...prev, newProfile]);
+    setSelectedProfile(id);
+    setNewProfileName("");
+  };
+
   const resetProgress = () => {
     setScore(0);
     setAttempts(0);
@@ -868,17 +946,21 @@ const nextHelper = helperCharacters.find(
     setStreak(0);
     setBestStreak(0);
     setFeedbackMessage("Complete a Few Exercises and I'll Peronalise your practice.")
-
-    localStorage.removeItem("score");
-    localStorage.removeItem("attempts");
-    localStorage.removeItem("mistakes");
-    localStorage.removeItem("intervalMistakes");
-    localStorage.removeItem("xp");
-    localStorage.removeItem("level");
-    localStorage.removeItem("streak");
-    localStorage.removeItem("bestStreak");
-    localStorage.removeItem("recentAnswers");
-    localStorage.removeItem("feedbackMessage");
+    if (selectedProfile) {
+      const key = (name) => `${accountName}_${selectedProfile}_${name}`;
+    
+      localStorage.removeItem(key("score"));
+      localStorage.removeItem(key("attempts"));
+      localStorage.removeItem(key("mistakes"));
+      localStorage.removeItem(key("intervalMistakes"));
+      localStorage.removeItem(key("difficulty"));
+      localStorage.removeItem(key("xp"));
+      localStorage.removeItem(key("level"));
+      localStorage.removeItem(key("streak"));
+      localStorage.removeItem(key("bestStreak"));
+      localStorage.removeItem(key("recentAnswers"));
+      localStorage.removeItem(key("feedbackMessage"));
+    }
   };
 
   const getModeButtonStyle = (buttonMode) => {
@@ -972,6 +1054,94 @@ const nextHelper = helperCharacters.find(
     );
   }
 
+  if (!selectedProfile) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.shell}>
+          <div style={styles.header}>
+            <h1 style={styles.title}>Choose Profile</h1>
+            <p style={styles.subtitle}>
+              Select who is practising today, or create a new local profile.
+            </p>
+          </div>
+  
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: "20px",
+              flexWrap: "wrap",
+              marginTop: "30px",
+            }}
+          >
+            {profiles.map((profile) => (
+              <button
+                key={profile.id}
+                onClick={() => setSelectedProfile(profile.id)}
+                style={{
+                  ...styles.sideCard,
+                  width: "180px",
+                  minHeight: "150px",
+                  cursor: "pointer",
+                  fontSize: "22px",
+                  fontWeight: "bold",
+                }}
+              >
+                <div style={{ fontSize: "42px", marginBottom: "10px" }}>
+                  {profile.emoji}
+                </div>
+                {profile.name}
+              </button>
+            ))}
+          </div>
+  
+          <div
+            style={{
+              margin: "30px auto 0",
+              padding: "22px",
+              borderRadius: "20px",
+              backgroundColor: "#f8fff3",
+              border: "1px solid #bbf7d0",
+              maxWidth: "520px",
+            }}
+          >
+            <h2>Create New Profile</h2>
+  
+            <input
+              type="text"
+              value={newProfileName}
+              onChange={(e) => setNewProfileName(e.target.value)}
+              placeholder="Enter profile name"
+              style={{
+                padding: "12px",
+                borderRadius: "12px",
+                border: "1px solid #bbf7d0",
+                marginRight: "10px",
+                fontSize: "16px",
+                width: "60%",
+                maxWidth: "280px",
+              }}
+            />
+  
+            <button onClick={createProfile} style={styles.primaryButton}>
+              Add Profile
+            </button>
+          </div>
+  
+          <button
+            onClick={() => setUiMode(null)}
+            style={{
+              ...styles.secondaryButton,
+              marginTop: "30px",
+            }}
+          >
+            Back to UI Mode
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.page}>
       <div style={styles.shell}>
@@ -984,9 +1154,21 @@ const nextHelper = helperCharacters.find(
               ? "Listen carefully, choose your answer, and keep practising!"
               : "Adaptive pitch and interval training with personalised feedback."}
           </p>
+          <p style={{ marginTop: "8px", fontWeight: "bold", color: "#15803d" }}>
+          Profile:{" "}
+            {profiles.find((profile) => profile.id === selectedProfile)?.emoji}{" "}
+            {profiles.find((profile) => profile.id === selectedProfile)?.name}
+          </p>
   
           <button onClick={() => setUiMode(null)} style={styles.secondaryButton}>
             Change UI Mode
+          </button>
+
+          <button
+          onClick={() => setSelectedProfile(null)}
+           style={styles.secondaryButton}
+          >   
+          Change Profile
           </button>
         </div>
   
