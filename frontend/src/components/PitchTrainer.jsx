@@ -122,6 +122,7 @@ function PitchTrainer() {
   const [profiles, setProfiles] = useState(defaultProfiles);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [newProfileName, setNewProfileName] = useState("");
+  const [profilesLoaded, setProfilesLoaded] = useState(false);
 
   // Load saved data from browser storage
   useEffect(() => {
@@ -222,14 +223,20 @@ function PitchTrainer() {
   useEffect(() => {
     const savedProfiles = localStorage.getItem(`${accountName}_profiles`);
   
-    if (savedProfiles) {
+    if (savedProfiles !== null) {
       setProfiles(JSON.parse(savedProfiles));
+    } else {
+      setProfiles(defaultProfiles);
     }
+  
+    setProfilesLoaded(true);
   }, []);
   
   useEffect(() => {
+    if (!profilesLoaded) return;
+  
     localStorage.setItem(`${accountName}_profiles`, JSON.stringify(profiles));
-  }, [profiles]);
+  }, [profiles, profilesLoaded]);
 
 
   // Converts notes such as C4, A5, B2 into frequencies using A4 = 440Hz
@@ -627,6 +634,10 @@ function PitchTrainer() {
     if (result.includes("Wrong")) {
       return result.replace("❌ Wrong!", "😊 Oops, not quite!");
     }
+
+    if (result.includes("Not quite")) {
+      return result.replace("⚠️ Not quite.", "😊 Oops, not quite!");
+    }
   
     if (result.includes("Play")) {
       return "🎵 Press New Sound first!";
@@ -795,6 +806,27 @@ const nextHelper = helperCharacters.find(
     });
   };
 
+  const getSemitoneDistance = (answerLabel, correctPitch) => {
+    if (!answerLabel || !correctPitch) return null;
+  
+    // Example answerLabel: "C4"
+    const answerNote = answerLabel.slice(0, -1);
+    const answerOctave = Number(answerLabel.slice(-1));
+  
+    if (!noteSemitones[answerNote] && noteSemitones[answerNote] !== 0) {
+      return null;
+    }
+  
+    const answerMidi =
+      (answerOctave + 1) * 12 + noteSemitones[answerNote];
+  
+    const correctMidi =
+      (correctPitch.octave + 1) * 12 + noteSemitones[correctPitch.note];
+  
+    return Math.abs(correctMidi - answerMidi);
+  };
+
+
 
   const checkAnswer = (answer) => {
     if (!hasPlayed) {
@@ -840,7 +872,7 @@ const nextHelper = helperCharacters.find(
           addXp(10);
         }
       } else {
-        setResult(`⚠️ Not Quite, It was ${currentInterval.name}`);
+        setResult(`⚠️ Not quite. The correct interval was ${currentInterval.name}.`);
   
         setStreak(0);
         addXp(2);
@@ -881,7 +913,18 @@ const nextHelper = helperCharacters.find(
           addXp(10);
         }
       } else {
-        setResult(`⚠️ Not Quite, It was ${currentPitch.label}`);
+        const semitoneDistance = getSemitoneDistance(answer, currentPitch);
+  
+        const distanceMessage =
+          semitoneDistance !== null
+            ? ` You were ${semitoneDistance} semitone${
+                semitoneDistance === 1 ? "" : "s"
+              } away.`
+            : "";
+  
+        setResult(
+          `⚠️ Not quite. The correct answer was ${currentPitch.label}.${distanceMessage}`
+        );
   
         setStreak(0);
         addXp(2);
