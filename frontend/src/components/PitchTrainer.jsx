@@ -62,42 +62,84 @@ const difficultySettings = {
 
 const accountName = "localAccount";
 
-const defaultProfiles = [
-  { id: "dad", name: "Dad", emoji: "👨" },
-  { id: "mum", name: "Mum", emoji: "👩" },
-  { id: "son", name: "Son", emoji: "🧒" },
-];
+const defaultProfiles = [];
 
-const helperCharacters = [
+
+const adultAvatarOptions = [
   {
     levelRequired: 1,
-    name: "Melody",
-    emoji: "🌿🎧",
-    description: "Your first music helper.",
+    name: "Starter",
+    emoji: "🎧",
+    description: "Default training avatar.",
   },
   {
     levelRequired: 2,
-    name: "Bongo",
-    emoji: "🐸🥁",
-    description: "Keeps the beat while you practise.",
+    name: "Robot",
+    emoji: "🤖",
+    description: "A focused practice bot.",
   },
   {
     levelRequired: 3,
-    name: "Pip",
-    emoji: "🐱🎵",
-    description: "Helps you spot tricky notes.",
+    name: "Wizard",
+    emoji: "🧙",
+    description: "A calm guide for sharper listening.",
+  },
+  {
+    levelRequired: 4,
+    name: "Vampire",
+    emoji: "🧛",
+    description: "Practises at night. Naturally dramatic.",
   },
   {
     levelRequired: 5,
-    name: "Nova",
-    emoji: "🚀🎶",
-    description: "Explores harder sounds with you.",
+    name: "King",
+    emoji: "👑",
+    description: "For royal-level ear training.",
   },
   {
-    levelRequired: 8,
-    name: "Draco",
-    emoji: "🐉🎼",
-    description: "A master helper for advanced practice.",
+    levelRequired: 7,
+    name: "Astronaut",
+    emoji: "🧑‍🚀",
+    description: "Explores advanced practice.",
+  },
+];
+
+const childAvatarOptions = [
+  {
+    levelRequired: 1,
+    name: "Frog",
+    emoji: "🐸",
+    description: "A cheerful starter friend.",
+  },
+  {
+    levelRequired: 2,
+    name: "Cat",
+    emoji: "🐱",
+    description: "Listens carefully to every sound.",
+  },
+  {
+    levelRequired: 3,
+    name: "Dog",
+    emoji: "🐶",
+    description: "Encourages you to keep trying.",
+  },
+  {
+    levelRequired: 4,
+    name: "Owl",
+    emoji: "🦉",
+    description: "A wise helper for tricky notes.",
+  },
+  {
+    levelRequired: 5,
+    name: "Fox",
+    emoji: "🦊",
+    description: "Quick and clever with intervals.",
+  },
+  {
+    levelRequired: 7,
+    name: "Dragon",
+    emoji: "🐉",
+    description: "A powerful practice companion.",
   },
 ];
 
@@ -128,6 +170,7 @@ function PitchTrainer() {
   const [profiles, setProfiles] = useState(defaultProfiles);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [newProfileName, setNewProfileName] = useState("");
+  const [newProfileAvatar, setNewProfileAvatar] = useState("🎧");
   const [profilesLoaded, setProfilesLoaded] = useState(false);
   const [customOctaves, setCustomOctaves] = useState([4]);
   const [sessionActive, setSessionActive] = useState(false);
@@ -135,6 +178,8 @@ function PitchTrainer() {
   const [sessionAttempts, setSessionAttempts] = useState([]);
   const [lastSessionSummary, setLastSessionSummary] = useState(null);
 
+  
+  
   // Load saved data from browser storage
   useEffect(() => {
     if (!selectedProfile) return;
@@ -249,6 +294,16 @@ function PitchTrainer() {
   
     localStorage.setItem(`${accountName}_profiles`, JSON.stringify(profiles));
   }, [profiles, profilesLoaded]);
+
+  useEffect(() => {
+    if (uiMode === "child") {
+      setNewProfileAvatar(childAvatarOptions[0].emoji);
+    }
+  
+    if (uiMode === "adult") {
+      setNewProfileAvatar(adultAvatarOptions[0].emoji);
+    }
+  }, [uiMode]);
 
 
   // Converts notes such as C4, A5, B2 into frequencies using A4 = 440Hz
@@ -666,6 +721,32 @@ function PitchTrainer() {
     return result;
   };
   
+  const activeAvatarOptions = isChildMode
+  ? childAvatarOptions
+  : adultAvatarOptions;
+
+
+  const unlockedAvatars = activeAvatarOptions.filter(
+    (avatar) => level >= avatar.levelRequired
+  );
+  
+  const nextAvatar = activeAvatarOptions.find(
+    (avatar) => avatar.levelRequired > level
+  );
+
+
+  const updateProfileAvatar = (emoji) => {
+    if (!selectedProfile) return;
+  
+    setProfiles((prev) =>
+      prev.map((profile) =>
+        profile.id === selectedProfile
+          ? { ...profile, emoji: emoji }
+          : profile
+      )
+    );
+  };
+
   const getFeedbackMessage = () => {
     if (!isChildMode) return feedbackMessage;
   
@@ -682,15 +763,7 @@ function PitchTrainer() {
     return "Keep going! Your helper is watching what feels tricky and will help you practise it 🎵";
   };
   
-  const helperCharacter =
-  helperCharacters
-    .filter((helper) => level >= helper.levelRequired)
-    .sort((a, b) => b.levelRequired - a.levelRequired)[0] ||
-  helperCharacters[0];
-
-const nextHelper = helperCharacters.find(
-  (helper) => helper.levelRequired > level
-);
+  
   
 const theme = isChildMode
   ? {
@@ -1001,6 +1074,9 @@ statRow: {
       }
     }
   
+   
+
+
     const updatedRecentAnswers = [...recentAnswers, attemptData].slice(-20);
     setRecentAnswers(updatedRecentAnswers);
 
@@ -1011,6 +1087,8 @@ statRow: {
     setFeedbackMessage(newFeedback);
   };
 
+
+  
 
   const createProfile = () => {
     const trimmedName = newProfileName.trim();
@@ -1032,13 +1110,72 @@ statRow: {
     const newProfile = {
       id,
       name: trimmedName,
-      emoji: "🎧",
+      emoji: newProfileAvatar,
+      uiMode: uiMode,
     };
   
     setProfiles((prev) => [...prev, newProfile]);
     setSelectedProfile(id);
     setNewProfileName("");
+    setNewProfileAvatar(
+      uiMode === "child"
+        ? childAvatarOptions[0].emoji
+        : adultAvatarOptions[0].emoji
+    );
   };
+
+  const changeUiModeSafely = () => {
+    setSelectedProfile(null);
+    setUiMode(null);
+    setResult("");
+    setAnswered(false);
+    setHasPlayed(false);
+    setCurrentPitch(null);
+    setCurrentNote("");
+    setCurrentInterval(null);
+    setRootPitch(null);
+  };
+
+
+  const currentProfile = profiles.find(
+    (profile) => profile.id === selectedProfile
+  );
+
+
+
+  const deleteProfile = (profileId) => {
+    const profileToDelete = profiles.find((profile) => profile.id === profileId);
+  
+    if (!profileToDelete) return;
+  
+    const confirmed = window.confirm(
+      `Delete profile "${profileToDelete.name}"? This will also delete its saved progress.`
+    );
+  
+    if (!confirmed) return;
+  
+    const key = (name) => `${accountName}_${profileId}_${name}`;
+  
+    localStorage.removeItem(key("score"));
+    localStorage.removeItem(key("attempts"));
+    localStorage.removeItem(key("mistakes"));
+    localStorage.removeItem(key("intervalMistakes"));
+    localStorage.removeItem(key("difficulty"));
+    localStorage.removeItem(key("xp"));
+    localStorage.removeItem(key("level"));
+    localStorage.removeItem(key("streak"));
+    localStorage.removeItem(key("bestStreak"));
+    localStorage.removeItem(key("recentAnswers"));
+    localStorage.removeItem(key("feedbackMessage"));
+    localStorage.removeItem(key("customOctaves"));
+  
+    setProfiles((prev) => prev.filter((profile) => profile.id !== profileId));
+  
+    if (selectedProfile === profileId) {
+      setSelectedProfile(null);
+    }
+  };
+
 
   const resetProgress = () => {
     setScore(0);
@@ -1272,6 +1409,8 @@ statRow: {
     };
   };
 
+
+
   const endSession = () => {
     const summary = generateSessionSummary();
   
@@ -1281,6 +1420,10 @@ statRow: {
   
     setFeedbackMessage("Session complete. Review your recap before starting another session.");
   };
+
+  const visibleProfiles = profiles.filter(
+    (profile) => profile.uiMode === uiMode
+  );
 
   if (!selectedProfile) {
     return (
@@ -1293,22 +1436,58 @@ statRow: {
             </p>
           </div>
   
+          {visibleProfiles.length === 0 && (
+            <p style={{ marginTop: "20px", color: theme.muted }}>
+              No profiles yet for this mode. Create one below to start practising.
+            </p>
+          )}
+  
           <div className="profile-grid" style={{ marginTop: "30px" }}>
-          
-            {profiles.map((profile) => (
+
+          {visibleProfiles.map((profile) => (
+            <div
+              key={profile.id}
+              style={{
+                ...styles.sideCard,
+                backgroundColor: theme.sideCardBg,
+                border: `1px solid ${theme.border}`,
+                color: theme.heading,
+                width: "180px",
+                minHeight: "170px",
+                fontSize: "22px",
+                fontWeight: "bold",
+                position: "relative",
+                padding: "12px",
+              }}
+            >
               <button
-                key={profile.id}
+                onClick={() => deleteProfile(profile.id)}
+                style={{
+                  position: "absolute",
+                  top: "8px",
+                  right: "8px",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: "18px",
+                }}
+                title="Delete profile"
+              >
+                🗑️
+              </button>
+
+              <button
                 onClick={() => setSelectedProfile(profile.id)}
                 style={{
-                  ...styles.sideCard,
-                  backgroundColor: theme.sideCardBg,
-                  border: `1px solid ${theme.border}`,
-                  color: theme.heading,
-                  width: "180px",
-                  minHeight: "150px",
+                  width: "100%",
+                  height: "100%",
+                  border: "none",
+                  background: "transparent",
                   cursor: "pointer",
-                  fontSize: "22px",
-                  fontWeight: "bold",
+                  color: "inherit",
+                  fontSize: "inherit",
+                  fontWeight: "inherit",
+                  padding: "24px 10px 10px",
                 }}
               >
                 <div style={{ fontSize: "42px", marginBottom: "10px" }}>
@@ -1316,16 +1495,17 @@ statRow: {
                 </div>
                 {profile.name}
               </button>
-            ))}
+            </div>
+          ))}
           </div>
   
           <div
-            className="profile-create-box"
-            style={{
-              backgroundColor: theme.cardBg,
-              border: `1px solid ${theme.border}`,
-            }}
-          >
+          className="profile-create-box"
+          style={{
+            backgroundColor: theme.cardBg,
+            border: `1px solid ${theme.border}`,
+          }}
+        >
           <h2>Create New Profile</h2>
 
           <input
@@ -1339,6 +1519,42 @@ statRow: {
               color: theme.text,
             }}
           />
+
+          <div style={{ marginTop: "18px" }}>
+            <h3>{isChildMode ? "Choose Animal Friend" : "Choose Avatar"}</h3>
+
+            <div className="button-row">
+              {activeAvatarOptions
+                .filter((avatar) => avatar.levelRequired === 1)
+                .map((avatar) => (
+                  <button
+                    key={avatar.name}
+                    onClick={() => setNewProfileAvatar(avatar.emoji)}
+                    style={{
+                      ...styles.secondaryButton,
+                      background:
+                        newProfileAvatar === avatar.emoji
+                          ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`
+                          : "#ffffff",
+                      color:
+                        newProfileAvatar === avatar.emoji
+                          ? "white"
+                          : theme.heading,
+                      border:
+                        newProfileAvatar === avatar.emoji
+                          ? "none"
+                          : `1px solid ${theme.border}`,
+                    }}
+                  >
+                    {avatar.emoji} {avatar.name}
+                  </button>
+                ))}
+            </div>
+
+            <p style={{ marginTop: "8px", fontSize: "14px", color: theme.muted }}>
+              More {isChildMode ? "animal friends" : "avatars"} unlock as you level up.
+            </p>
+          </div>
 
           <button onClick={createProfile} style={styles.primaryButton}>
             Add Profile
@@ -1383,12 +1599,11 @@ statRow: {
             }}
           >
             Profile:{" "}
-            {profiles.find((profile) => profile.id === selectedProfile)?.emoji}{" "}
-            {profiles.find((profile) => profile.id === selectedProfile)?.name}
+            {currentProfile?.emoji} {currentProfile?.name}
           </p>
   
-          <button onClick={() => setUiMode(null)} style={styles.secondaryButton}>
-            Change UI Mode
+          <button onClick={changeUiModeSafely} style={styles.secondaryButton}>
+          Change UI Mode
           </button>
 
           <button
@@ -1636,7 +1851,62 @@ statRow: {
              </div>
            </div>
           </div>
-                 
+          <div style={styles.sideCard}>
+            <h2>{isChildMode ? "Animal Friends ⭐" : "Profile Avatars"}</h2>
+
+            <p style={{ color: theme.muted, fontSize: "14px", marginBottom: "12px" }}>
+              {isChildMode
+                ? "Unlock animal friends by gaining experience and levelling up."
+                : "Unlock profile avatars by gaining experience and levelling up."}
+            </p>
+
+            {activeAvatarOptions.map((avatar) => {
+              const unlocked = level >= avatar.levelRequired;
+              const selected = currentProfile?.emoji === avatar.emoji;
+
+              return (
+                <button
+                  key={avatar.name}
+                  disabled={!unlocked}
+                  onClick={() => updateProfileAvatar(avatar.emoji)}
+                  style={{
+                    width: "100%",
+                    marginBottom: "8px",
+                    padding: "10px",
+                    borderRadius: "14px",
+                    border: selected
+                      ? `2px solid ${theme.primary}`
+                      : `1px solid ${theme.border}`,
+                    backgroundColor: unlocked ? theme.cardBg : "#f1f5f9",
+                    color: unlocked ? theme.heading : "#94a3b8",
+                    opacity: unlocked ? 1 : 0.55,
+                    cursor: unlocked ? "pointer" : "not-allowed",
+                    textAlign: "left",
+                  }}
+                >
+                  <strong>
+                    {avatar.emoji} {avatar.name}
+                  </strong>
+
+                  <p style={{ margin: "4px 0 0", fontSize: "13px" }}>
+                    {unlocked
+                      ? selected
+                        ? "Currently selected"
+                        : "Unlocked"
+                      : `Unlocks at Level ${avatar.levelRequired}`}
+                  </p>
+                </button>
+              );
+            })}
+
+            {nextAvatar && (
+              <p style={{ marginTop: "12px", fontSize: "14px", color: theme.muted }}>
+                Next unlock: {nextAvatar.emoji} {nextAvatar.name} at Level{" "}
+                {nextAvatar.levelRequired}
+              </p>
+            )}
+          </div>
+
           {lastSessionSummary && (
           <div style={styles.sideCard}>
             <h2>{isChildMode ? "Session Recap ✔️" : "Session Recap"}</h2>
@@ -1692,86 +1962,23 @@ statRow: {
                 
           <div style={styles.sideCard}>
           <h2>
-           {isChildMode
-             ? `${helperCharacter.emoji} ${helperCharacter.name} Says`
-              : "Personalised Feedback"}
-          </h2>
+          {isChildMode
+            ? `${currentProfile?.emoji || "🐸"} ${currentProfile?.name || "Helper"} Says`
+            : "Personalised Feedback"}
+        </h2>
 
-         {isChildMode && (
-           <p style={{ fontSize: "14px", color: "#64748b", marginBottom: "10px" }}>
-              {helperCharacter.description}
-           </p>
-        )}
+        {isChildMode && (
+        <p style={{ fontSize: "14px", color: theme.muted, marginBottom: "10px" }}>
+          Your selected animal friend will help guide your practice.
+        </p>
+      )}
 
          <p style={{ lineHeight: "1.5", fontSize: "15px" }}>
             {getFeedbackMessage()}
           </p>
 
-          {isChildMode && nextHelper && (
-           <div
-             style={{
-               marginTop: "14px",
-               padding: "12px",
-               borderRadius: "14px",
-               backgroundColor: "#ecfdf5",
-               border: "1px solid #bbf7d0",
-             }}
-           >
-             <strong>Next helper:</strong>
-             <p style={{ margin: "6px 0 0" }}>
-               {nextHelper.emoji} {nextHelper.name} unlocks at Level{" "}
-               {nextHelper.levelRequired}
-             </p>
-           </div>
-         )}
-
-         {isChildMode && !nextHelper && (
-            <div
-              style={{
-              marginTop: "14px",
-              padding: "12px",
-              borderRadius: "14px",
-              backgroundColor: "#ecfdf5",
-              border: "1px solid #bbf7d0",
-            }}
-          >
-            <strong>All helpers unlocked!</strong>
-            <p style={{ margin: "6px 0 0" }}>You have collected every helper 🎉</p>
-          </div>
-        )}
+          
       </div>
-
-      {isChildMode && (
-  <div style={styles.sideCard}>
-    <h2>Helper Collection</h2>
-
-    {helperCharacters.map((helper) => {
-      const unlocked = level >= helper.levelRequired;
-
-      return (
-        <div
-          key={helper.name}
-          style={{
-            padding: "10px",
-            marginBottom: "8px",
-            borderRadius: "12px",
-            backgroundColor: unlocked ? "#dcfce7" : "#f1f5f9",
-            opacity: unlocked ? 1 : 0.55,
-          }}
-        >
-          <strong>
-            {helper.emoji} {helper.name}
-          </strong>
-          <p style={{ margin: "4px 0 0", fontSize: "14px" }}>
-            {unlocked
-              ? "Unlocked!"
-              : `Unlocks at Level ${helper.levelRequired}`}
-          </p>
-        </div>
-      );
-    })}
-  </div>
-)}
   
             {!isChildMode && (
               <div style={styles.sideCard}>
