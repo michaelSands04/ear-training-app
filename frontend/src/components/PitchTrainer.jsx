@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import "./PitchTrainer.css";
 
 const baseNotes = ["C", "D", "E", "F", "G", "A", "B"];
 
@@ -143,7 +144,6 @@ function PitchTrainer() {
     const savedMistakes = localStorage.getItem(key("mistakes"));
     const savedIntervalMistakes = localStorage.getItem(key("intervalMistakes"));
     const savedDifficulty = localStorage.getItem(key("difficulty"));
-    const savedOctaveFocus = localStorage.getItem(key("octaveFocus"));
     const savedXp = localStorage.getItem(key("xp"));
     const savedLevel = localStorage.getItem(key("level"));
     const savedStreak = localStorage.getItem(key("streak"));
@@ -1005,10 +1005,9 @@ const nextHelper = helperCharacters.find(
     setStreak(0);
     setBestStreak(0);
     setFeedbackMessage("Complete a Few Exercises and I'll Peronalise your practice.")
-    setOctaveFocus("auto");
-    localStorage.removeItem(key("octaveFocus"));
     setCustomOctaves([4]);
-    localStorage.removeItem(key("customOctaves"));
+   
+    
     if (selectedProfile) {
       const key = (name) => `${accountName}_${selectedProfile}_${name}`;
     
@@ -1023,6 +1022,7 @@ const nextHelper = helperCharacters.find(
       localStorage.removeItem(key("bestStreak"));
       localStorage.removeItem(key("recentAnswers"));
       localStorage.removeItem(key("feedbackMessage"));
+      localStorage.removeItem(key("customOctaves"));
     }
   };
 
@@ -1059,24 +1059,6 @@ const nextHelper = helperCharacters.find(
     setCurrentNote("");
     setCurrentInterval(null);
     setRootPitch(null);
-  };
-
-
-  const getOctaveButtonStyle = (buttonOctave) => {
-    const isActive = octaveFocus === buttonOctave;
-  
-    return {
-      ...styles.secondaryButton,
-      background: isActive
-        ? "linear-gradient(135deg, #22c55e, #15803d)"
-        : "#ffffff",
-      color: isActive ? "white" : "#14532d",
-      border: isActive ? "none" : "1px solid #bbf7d0",
-      boxShadow: isActive
-        ? "0 6px 14px rgba(34, 197, 94, 0.35)"
-        : "none",
-      transform: isActive ? "scale(1.03)" : "scale(1)",
-    };
   };
   
   const getDifficultyButtonStyle = (buttonDifficulty) => {
@@ -1158,8 +1140,8 @@ const nextHelper = helperCharacters.find(
 
   if (!selectedProfile) {
     return (
-      <div style={styles.page}>
-        <div style={styles.shell}>
+      <div className="pitch-page" style={styles.page}>
+        <div className="pitch-shell" style={styles.shell}>
           <div style={styles.header}>
             <h1 style={styles.title}>Choose Profile</h1>
             <p style={styles.subtitle}>
@@ -1167,15 +1149,8 @@ const nextHelper = helperCharacters.find(
             </p>
           </div>
   
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              gap: "20px",
-              flexWrap: "wrap",
-              marginTop: "30px",
-            }}
-          >
+          <div className="profile-grid" style={{ marginTop: "30px" }}>
+          
             {profiles.map((profile) => (
               <button
                 key={profile.id}
@@ -1197,38 +1172,21 @@ const nextHelper = helperCharacters.find(
             ))}
           </div>
   
-          <div
-            style={{
-              margin: "30px auto 0",
-              padding: "22px",
-              borderRadius: "20px",
-              backgroundColor: "#f8fff3",
-              border: "1px solid #bbf7d0",
-              maxWidth: "520px",
-            }}
-          >
-            <h2>Create New Profile</h2>
-  
-            <input
-              type="text"
-              value={newProfileName}
-              onChange={(e) => setNewProfileName(e.target.value)}
-              placeholder="Enter profile name"
-              style={{
-                padding: "12px",
-                borderRadius: "12px",
-                border: "1px solid #bbf7d0",
-                marginRight: "10px",
-                fontSize: "16px",
-                width: "60%",
-                maxWidth: "280px",
-              }}
-            />
-  
-            <button onClick={createProfile} style={styles.primaryButton}>
-              Add Profile
-            </button>
-          </div>
+          <div className="profile-create-box">
+          <h2>Create New Profile</h2>
+
+          <input
+            className="profile-input"
+            type="text"
+            value={newProfileName}
+            onChange={(e) => setNewProfileName(e.target.value)}
+            placeholder="Enter profile name"
+          />
+
+          <button onClick={createProfile} style={styles.primaryButton}>
+            Add Profile
+          </button>
+        </div>
   
           <button
             onClick={() => setUiMode(null)}
@@ -1273,124 +1231,163 @@ const nextHelper = helperCharacters.find(
           Change Profile
           </button>
         </div>
-  
-        <div style={styles.layout}>
-          <main>
-            <div style={styles.card}>
-              <h2>{isChildMode ? "Choose your game mode" : "Training Mode"}</h2>
-              <button
-                onClick={() => setMode("note")}
-                style={getModeButtonStyle("note")}
-              >
-                🎵 Note Mode
-              </button>
+        <div className="pitch-layout">
+  <main className="pitch-main">
+    <div style={styles.card}>
+      <h2>{isChildMode ? "Choose your game mode" : "Training Mode"}</h2>
 
-<button
-  onClick={() => setMode("interval")}
-  style={getModeButtonStyle("interval")}
->
-  📊 Interval Mode
-</button>
-            </div>
-  
-            <div style={styles.card}>
-              <h2>{isChildMode ? "Choose your challenge" : "Difficulty"}</h2>
-              <button onClick={() => setDifficulty("easy")} style={getDifficultyButtonStyle("easy")}>⭐ Easy</button>
-              <button onClick={() => setDifficulty("medium")} style={getDifficultyButtonStyle("medium")}>📈 Medium</button>
-              <button onClick={() => setDifficulty("hard")} style={getDifficultyButtonStyle("hard")}>⛰️ Hard</button>
-              <button onClick={() => setDifficulty("expert")} style={getDifficultyButtonStyle("expert")}>👑 Expert</button>
-              <button onClick={() => setDifficulty("custom")} style={getDifficultyButtonStyle("custom")}>🎛️ Custom</button>
-              <p>
-              Current: <strong>{difficultySettings[difficulty].label}</strong>
-              {difficulty === "custom" && (
-                <>
-                  {" "}
-                  (
-                  {customOctaves.map((octave) => `Octave ${octave}`).join(", ")}
-                  )
-                </>
-              )}
-            </p>
-            </div>
-
-            {difficulty === "custom" && (
-  <div style={styles.card}>
-    <h2>{isChildMode ? "Choose your sound areas" : "Custom Octave Focus"}</h2>
-
-    <p style={{ marginBottom: "14px", color: "#64748b" }}>
-      Select one or more octaves to practise.
-    </p>
-
-    {[2, 3, 4, 5].map((octave) => {
-      const selected = customOctaves.includes(octave);
-
-      return (
+      <div className="button-row">
         <button
-          key={octave}
-          onClick={() => toggleCustomOctave(octave)}
-          style={{
-            ...styles.secondaryButton,
-            background: selected
-              ? "linear-gradient(135deg, #14b8a6, #0f766e)"
-              : "#ffffff",
-            color: selected ? "white" : "#14532d",
-            border: selected ? "none" : "1px solid #bbf7d0",
-            boxShadow: selected
-              ? "0 6px 14px rgba(20, 184, 166, 0.35)"
-              : "none",
-          }}
+          onClick={() => setMode("note")}
+          style={getModeButtonStyle("note")}
         >
-          {selected ? "✅" : "⬜"} Octave {octave}
+          🎵 Note Mode
         </button>
-      );
-    })}
 
-    <p style={{ marginTop: "14px" }}>
-      Selected: <strong>{customOctaves.map((oct) => `Octave ${oct}`).join(", ")}</strong>
-    </p>
-  </div>
-)}
-            <div style={styles.card}>
-              <p>
-                <strong>Mode:</strong>{" "}
-                {mode === "note" ? "Note Recognition" : "Interval Training"}
-              </p>
-  
-              {mode === "interval" && rootPitch && (
-                <p>
-                  <strong>Reference Note:</strong> {rootPitch.label}
-                </p>
-              )}
-  
-              <button onClick={generateNote} style={styles.primaryButton}>
-                {isChildMode ? "🎵 New Sound" : "New Exercise"}
+        <button
+          onClick={() => setMode("interval")}
+          style={getModeButtonStyle("interval")}
+        >
+          📊 Interval Mode
+        </button>
+      </div>
+    </div>
+
+    <div style={styles.card}>
+      <h2>{isChildMode ? "Choose your challenge" : "Difficulty"}</h2>
+
+      <div className="button-row">
+        <button
+          onClick={() => setDifficulty("easy")}
+          style={getDifficultyButtonStyle("easy")}
+        >
+          ⭐ Easy
+        </button>
+
+        <button
+          onClick={() => setDifficulty("medium")}
+          style={getDifficultyButtonStyle("medium")}
+        >
+          📈 Medium
+        </button>
+
+        <button
+          onClick={() => setDifficulty("hard")}
+          style={getDifficultyButtonStyle("hard")}
+        >
+          ⛰️ Hard
+        </button>
+
+        <button
+          onClick={() => setDifficulty("expert")}
+          style={getDifficultyButtonStyle("expert")}
+        >
+          👑 Expert
+        </button>
+
+        <button
+          onClick={() => setDifficulty("custom")}
+          style={getDifficultyButtonStyle("custom")}
+        >
+          🎛️ Custom
+        </button>
+      </div>
+
+      <p>
+        Current: <strong>{difficultySettings[difficulty].label}</strong>
+        {difficulty === "custom" && (
+          <>
+            {" "}
+            ({customOctaves.map((octave) => `Octave ${octave}`).join(", ")})
+          </>
+        )}
+      </p>
+    </div>
+
+    {difficulty === "custom" && (
+      <div style={styles.card}>
+        <h2>{isChildMode ? "Choose your sound areas" : "Custom Octave Focus"}</h2>
+
+        <p style={{ marginBottom: "14px", color: "#64748b" }}>
+          Select one or more octaves to practise.
+        </p>
+
+        <div className="button-row">
+          {[2, 3, 4, 5].map((octave) => {
+            const selected = customOctaves.includes(octave);
+
+            return (
+              <button
+                key={octave}
+                onClick={() => toggleCustomOctave(octave)}
+                style={{
+                  ...styles.secondaryButton,
+                  background: selected
+                    ? "linear-gradient(135deg, #14b8a6, #0f766e)"
+                    : "#ffffff",
+                  color: selected ? "white" : "#14532d",
+                  border: selected ? "none" : "1px solid #bbf7d0",
+                  boxShadow: selected
+                    ? "0 6px 14px rgba(20, 184, 166, 0.35)"
+                    : "none",
+                }}
+              >
+                {selected ? "✅" : "⬜"} Octave {octave}
               </button>
+            );
+          })}
+        </div>
+
+        <p style={{ marginTop: "14px" }}>
+          Selected:{" "}
+          <strong>
+            {customOctaves.map((oct) => `Octave ${oct}`).join(", ")}
+          </strong>
+        </p>
+      </div>
+    )}
+
+    <div style={styles.card}>
+      <p>
+        <strong>Mode:</strong>{" "}
+        {mode === "note" ? "Note Recognition" : "Interval Training"}
+      </p>
+
+      {mode === "interval" && rootPitch && (
+        <p>
+          <strong>Reference Note:</strong> {rootPitch.label}
+        </p>
+      )}
+
+      <button onClick={generateNote} style={styles.primaryButton}>
+        {isChildMode ? "🎵 New Sound" : "New Exercise"}
+      </button>
+
+      <button onClick={replayNote} style={styles.secondaryButton}>
+        🔁 Replay
+      </button>
+
+      <div className="answer-grid" style={{ marginTop: "20px" }}>
+        {(mode === "note"
+          ? getCurrentNoteAnswers()
+          : getAvailableIntervals().map((interval) => interval.name)
+        ).map((item) => (
+          <button
+            key={item}
+            onClick={() => checkAnswer(item)}
+            style={styles.answerButton}
+            disabled={answered}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+
+      <h2>{getResultMessage()}</h2>
+    </div>
+  </main>
   
-              <button onClick={replayNote} style={styles.secondaryButton}>
-                🔁 Replay
-              </button>
-  
-              <div style={{ marginTop: "20px" }}>
-                {(mode === "note"
-                  ? getCurrentNoteAnswers()
-                  : getAvailableIntervals().map((interval) => interval.name)
-                ).map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => checkAnswer(item)}
-                    style={styles.answerButton}
-                    disabled={answered}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-  
-              <h2>{getResultMessage()}</h2>
-            </div>
-          </main>
-  
-          <aside>
+          <aside className="pitch-sidebar">
           <div style={styles.sideCard}>
             <h2>🏆 {isChildMode ? "Your Progress" : "Progress"}</h2>
 

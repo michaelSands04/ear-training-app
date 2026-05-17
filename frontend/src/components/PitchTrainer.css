@@ -1,0 +1,143 @@
+.pitch-page {
+    min-height: 100vh;
+    width: 100%;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  
+  .pitch-shell {
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    border-radius: 32px;
+    padding: 28px;
+    box-sizing: border-box;
+  }
+  
+  .pitch-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .pitch-main,
+  .pitch-sidebar {
+    min-width: 0;
+  }
+  
+  .button-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .answer-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  .profile-grid {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  
+  .profile-create-box {
+    margin: 30px auto 0;
+    padding: 22px;
+    border-radius: 20px;
+    background-color: #f8fff3;
+    border: 1px solid #bbf7d0;
+    max-width: 520px;
+  }
+  
+  .profile-input {
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #bbf7d0;
+    margin-right: 10px;
+    font-size: 16px;
+    width: 60%;
+    max-width: 280px;
+  }
+  
+  /* Phone layout only */
+  @media (max-width: 640px) {
+    .pitch-page {
+      padding: 12px;
+    }
+  
+    .pitch-shell {
+      border-radius: 20px;
+      padding: 16px;
+    }
+  
+    .pitch-layout {
+      grid-template-columns: 1fr;
+    }
+  
+    .pitch-sidebar {
+      width: 100%;
+    }
+  
+    .button-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  
+    .button-row button {
+      width: 100%;
+      margin: 4px 0 !important;
+    }
+  
+    .answer-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+  
+    .answer-grid button {
+      width: 100%;
+      min-width: 0 !important;
+      margin: 0 !important;
+    }
+  
+    .profile-grid {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  
+    .profile-grid button {
+      width: 100% !important;
+    }
+  
+    .profile-create-box {
+      padding: 16px;
+    }
+  
+    .profile-input {
+      width: 100%;
+      max-width: none;
+      margin-right: 0;
+      margin-bottom: 10px;
+    }
+  }
+  
+  /* Very small phones */
+  @media (max-width: 420px) {
+    .answer-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .pitch-shell {
+      padding: 12px;
+    }
+  }
