@@ -130,6 +130,10 @@ function PitchTrainer() {
   const [newProfileName, setNewProfileName] = useState("");
   const [profilesLoaded, setProfilesLoaded] = useState(false);
   const [customOctaves, setCustomOctaves] = useState([4]);
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState(null);
+  const [sessionAttempts, setSessionAttempts] = useState([]);
+  const [lastSessionSummary, setLastSessionSummary] = useState(null);
 
   // Load saved data from browser storage
   useEffect(() => {
@@ -688,6 +692,36 @@ const nextHelper = helperCharacters.find(
   (helper) => helper.levelRequired > level
 );
   
+const theme = isChildMode
+  ? {
+      pageBg: "linear-gradient(135deg, #dfffd6 0%, #f7fff4 45%, #c8f7b8 100%)",
+      shellBg: "#ffffff",
+      cardBg: "#f8fff3",
+      sideCardBg: "#ffffff",
+      border: "#bbf7d0",
+      text: "#14351f",
+      heading: "#14532d",
+      muted: "#64748b",
+      primary: "#16a34a",
+      primaryDark: "#15803d",
+      primarySoft: "#dcfce7",
+      shadow: "0 18px 45px rgba(34, 94, 45, 0.18)",
+    }
+  : {
+      pageBg: "linear-gradient(135deg, #eaf2ff 0%, #f8fbff 45%, #dbeafe 100%)",
+      shellBg: "#ffffff",
+      cardBg: "#f7faff",
+      sideCardBg: "#ffffff",
+      border: "#bfdbfe",
+      text: "#172033",
+      heading: "#1e3a8a",
+      muted: "#64748b",
+      primary: "#2563eb",
+      primaryDark: "#1d4ed8",
+      primarySoft: "#dbeafe",
+      shadow: "0 18px 45px rgba(37, 99, 235, 0.14)",
+    };
+
   const styles = {
     page: {
       minHeight: "100vh",
@@ -696,22 +730,20 @@ const nextHelper = helperCharacters.find(
       padding: "24px",
       boxSizing: "border-box",
       overflowX: "hidden",
-      background: isChildMode
-        ? "linear-gradient(135deg, #dfffd6 0%, #f7fff4 45%, #c8f7b8 100%)"
-        : "linear-gradient(135deg, #e5e7eb 0%, #f8fafc 50%, #dbeafe 100%)",
+      background: theme.pageBg,
       fontFamily: "Inter, Arial, sans-serif",
-      color: "#14351f",
+      color: theme.text,
     },
   
     shell: {
       width: "100%",
-      maxWidth: "1120px",
+      maxWidth: "1280px",
       margin: "0 auto",
-      background: "#ffffff",
+      background: theme.shellBg,
       borderRadius: "32px",
       padding: "28px",
       boxSizing: "border-box",
-      boxShadow: "0 18px 45px rgba(34, 94, 45, 0.18)",
+      boxShadow: theme.shadow,
     },
 
     header: {
@@ -720,13 +752,13 @@ const nextHelper = helperCharacters.find(
     },
   
     title: {
-      fontSize: isChildMode ? "44px" : "38px",
+      fontSize: isChildMode ? "44px" : "40px",
       margin: "0 0 8px",
-      color: isChildMode ? "#14532d" : "#111827",
+      color: theme.heading,
     },
   
     subtitle: {
-      color: "#64748b",
+      color: theme.muted,
       fontSize: "18px",
       margin: 0,
     },
@@ -742,71 +774,72 @@ const nextHelper = helperCharacters.find(
     },
   
     card: {
-      background: isChildMode ? "#f8fff3" : "#f9fafb",
-      border: "1px solid #d9f5ce",
+      background: theme.cardBg,
+      border: `1px solid ${theme.border}`,
       borderRadius: "24px",
       padding: "24px",
       marginBottom: "20px",
-      boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+      boxShadow: "0 6px 18px rgba(0,0,0,0.05)",
     },
   
     sideCard: {
-      background: "#ffffff",
-      border: "1px solid #d9f5ce",
+      background: theme.sideCardBg,
+      border: `1px solid ${theme.border}`,
       borderRadius: "24px",
       padding: "22px",
       marginBottom: "20px",
-      boxShadow: "0 8px 20px rgba(34, 94, 45, 0.12)",
+      boxShadow: "0 8px 20px rgba(0,0,0,0.07)",
       overflowWrap: "break-word",
       boxSizing: "border-box",
     },
-  
+
     primaryButton: {
       margin: "7px",
-      padding: isChildMode ? "15px 24px" : "12px 18px",
-      fontSize: isChildMode ? "18px" : "15px",
+      padding: isChildMode ? "15px 24px" : "12px 20px",
+      fontSize: isChildMode ? "18px" : "16px",
       borderRadius: "16px",
       border: "none",
       cursor: "pointer",
-      background: "linear-gradient(135deg, #22c55e, #15803d)",
+      background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`,
       color: "white",
       fontWeight: "700",
-      boxShadow: "0 6px 12px rgba(34, 197, 94, 0.28)",
+      boxShadow: isChildMode
+        ? "0 6px 12px rgba(34, 197, 94, 0.28)"
+        : "0 6px 12px rgba(37, 99, 235, 0.24)",
     },
+   secondaryButton: {
+  margin: "7px",
+  padding: isChildMode ? "13px 22px" : "10px 16px",
+  fontSize: isChildMode ? "17px" : "15px",
+  borderRadius: "16px",
+  border: `1px solid ${theme.border}`,
+  cursor: "pointer",
+  background: "#ffffff",
+  color: theme.heading,
+  fontWeight: "700",
+},
   
-    secondaryButton: {
-      margin: "7px",
-      padding: isChildMode ? "13px 22px" : "10px 16px",
-      fontSize: isChildMode ? "17px" : "15px",
-      borderRadius: "16px",
-      border: "1px solid #bbf7d0",
-      cursor: "pointer",
-      background: "#ffffff",
-      color: "#14532d",
-      fontWeight: "700",
-    },
+answerButton: {
+  margin: "8px",
+  padding: isChildMode ? "18px 24px" : "15px 22px",
+  fontSize: isChildMode ? "21px" : "18px",
+  borderRadius: "18px",
+  border: `1px solid ${theme.border}`,
+  cursor: "pointer",
+  background: "#ffffff",
+  color: theme.heading,
+  fontWeight: "800",
+  minWidth: "80px",
+  boxShadow: "0 5px 12px rgba(0,0,0,0.06)",
+},
   
-    answerButton: {
-      margin: "8px",
-      padding: isChildMode ? "18px 24px" : "15px 22px",
-      fontSize: isChildMode ? "21px" : "18px",
-      borderRadius: "18px",
-      border: "1px solid #bbf7d0",
-      cursor: "pointer",
-      background: "#ffffff",
-      color: "#14532d",
-      fontWeight: "800",
-      minWidth: "80px",
-      boxShadow: "0 5px 12px rgba(0,0,0,0.08)",
-    },
-  
-    statRow: {
-      display: "flex",
-      justifyContent: "space-between",
-      padding: "10px 0",
-      borderBottom: "1px solid #ecfdf5",
-      fontSize: "17px",
-    },
+statRow: {
+  display: "flex",
+  justifyContent: "space-between",
+  padding: "10px 0",
+  borderBottom: `1px solid ${isChildMode ? "#ecfdf5" : "#e0ecff"}`,
+  fontSize: "17px",
+},
   };
 
 
@@ -842,7 +875,14 @@ const nextHelper = helperCharacters.find(
     return Math.abs(correctMidi - answerMidi);
   };
 
-
+  const startSession = () => {
+    setSessionActive(true);
+    setSessionStartTime(Date.now());
+    setSessionAttempts([]);
+    setLastSessionSummary(null);
+    setResult("");
+    setFeedbackMessage("Session started. Complete exercises and I’ll summarise your progress.");
+  };
 
   const checkAnswer = (answer) => {
     if (!hasPlayed) {
@@ -859,15 +899,21 @@ const nextHelper = helperCharacters.find(
     let attemptData = {};
   
     if (mode === "interval") {
-      isCorrect = answer === currentInterval.name;
-  
+      isCorrect = answer === currentPitch.label;
+
+      const semitoneDistance = isCorrect
+        ? 0
+        : getSemitoneDistance(answer, currentPitch);
+
       attemptData = {
-        mode: "interval",
-        target: currentInterval.name,
-        root: rootPitch ? rootPitch.label : null,
+        mode: "note",
+        target: currentPitch.label,
+        note: currentPitch.note,
+        octave: currentPitch.octave,
         answer: answer,
         correct: isCorrect,
         difficulty: difficulty,
+        semitoneDistance: semitoneDistance,
         timestamp: Date.now(),
       };
   
@@ -901,16 +947,21 @@ const nextHelper = helperCharacters.find(
     } else {
       isCorrect = answer === currentPitch.label;
   
-      attemptData = {
-        mode: "note",
-        target: currentPitch.label,
-        note: currentPitch.note,
-        octave: currentPitch.octave,
-        answer: answer,
-        correct: isCorrect,
-        difficulty: difficulty,
-        timestamp: Date.now(),
-      };
+      const semitoneDistance = isCorrect
+  ? 0
+  : getSemitoneDistance(answer, currentPitch);
+
+    attemptData = {
+      mode: "note",
+      target: currentPitch.label,
+      note: currentPitch.note,
+      octave: currentPitch.octave,
+      answer: answer,
+      correct: isCorrect,
+      difficulty: difficulty,
+      semitoneDistance: semitoneDistance,
+      timestamp: Date.now(),
+    };
   
       if (isCorrect) {
         setResult("✅ Correct!");
@@ -929,22 +980,20 @@ const nextHelper = helperCharacters.find(
           addXp(10);
         }
       } else {
-        const semitoneDistance = getSemitoneDistance(answer, currentPitch);
-  
         const distanceMessage =
-          semitoneDistance !== null
-            ? ` You were ${semitoneDistance} semitone${
-                semitoneDistance === 1 ? "" : "s"
+          attemptData.semitoneDistance !== null
+            ? ` You were ${attemptData.semitoneDistance} semitone${
+                attemptData.semitoneDistance === 1 ? "" : "s"
               } away.`
             : "";
-  
+      
         setResult(
           `⚠️ Not quite. The correct answer was ${currentPitch.label}.${distanceMessage}`
         );
-  
+      
         setStreak(0);
         addXp(2);
-  
+      
         setMistakes((prev) => ({
           ...prev,
           [currentPitch.label]: (prev[currentPitch.label] || 0) + 1,
@@ -954,7 +1003,10 @@ const nextHelper = helperCharacters.find(
   
     const updatedRecentAnswers = [...recentAnswers, attemptData].slice(-20);
     setRecentAnswers(updatedRecentAnswers);
-  
+
+    if (sessionActive) {
+      setSessionAttempts((prev) => [...prev, attemptData]);
+    }
     const newFeedback = generateAdaptiveFeedback(updatedRecentAnswers, mode);
     setFeedbackMessage(newFeedback);
   };
@@ -1032,13 +1084,16 @@ const nextHelper = helperCharacters.find(
     return {
       ...styles.secondaryButton,
       background: isActive
-        ? "linear-gradient(135deg, #22c55e, #15803d)"
+        ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`
         : "#ffffff",
-      color: isActive ? "white" : "#14532d",
-      border: isActive ? "none" : "1px solid #bbf7d0",
+      color: isActive ? "white" : theme.heading,
+      border: isActive ? "none" : `1px solid ${theme.border}`,
       boxShadow: isActive
-        ? "0 6px 14px rgba(34, 197, 94, 0.35)"
+        ? isChildMode
+          ? "0 6px 14px rgba(34, 197, 94, 0.35)"
+          : "0 6px 14px rgba(37, 99, 235, 0.30)"
         : "none",
+      transform: isActive ? "scale(1.03)" : "scale(1)",
     };
   };
 
@@ -1060,16 +1115,16 @@ const nextHelper = helperCharacters.find(
     setCurrentInterval(null);
     setRootPitch(null);
   };
-  
+
   const getDifficultyButtonStyle = (buttonDifficulty) => {
     const isActive = difficulty === buttonDifficulty;
   
     const adultColours = {
-      easy: "#22c55e",
-      medium: "#2563eb",
-      hard: "#ea580c",
-      expert: "#7c3aed",
-      custom: "#14b8a6",
+      easy: "#2563eb",
+      medium: "#4f46e5",
+      hard: "#7c3aed",
+      expert: "#0f172a",
+      custom: "#0891b2",
     };
   
     const childColours = {
@@ -1081,15 +1136,14 @@ const nextHelper = helperCharacters.find(
     };
   
     const colours = isChildMode ? childColours : adultColours;
+    const activeColour = colours[buttonDifficulty];
   
     return {
       ...styles.secondaryButton,
-      background: isActive ? colours[buttonDifficulty] : "#ffffff",
-      color: isActive ? "white" : "#14532d",
-      border: isActive ? "none" : "1px solid #bbf7d0",
-      boxShadow: isActive
-        ? `0 6px 14px ${colours[buttonDifficulty]}66`
-        : "none",
+      background: isActive ? activeColour : "#ffffff",
+      color: isActive ? "white" : theme.heading,
+      border: isActive ? "none" : `1px solid ${theme.border}`,
+      boxShadow: isActive ? `0 6px 14px ${activeColour}55` : "none",
       transform: isActive ? "scale(1.03)" : "scale(1)",
     };
   };
@@ -1138,6 +1192,96 @@ const nextHelper = helperCharacters.find(
     );
   }
 
+  const generateSessionSummary = () => {
+    if (sessionAttempts.length === 0) {
+      return {
+        message: "No exercises were completed in this session.",
+        totalAttempts: 0,
+      };
+    }
+  
+    const totalAttempts = sessionAttempts.length;
+    const correctAnswers = sessionAttempts.filter((item) => item.correct).length;
+    const sessionAccuracy = ((correctAnswers / totalAttempts) * 100).toFixed(1);
+  
+    const noteAttempts = sessionAttempts.filter((item) => item.mode === "note");
+    const intervalAttempts = sessionAttempts.filter(
+      (item) => item.mode === "interval"
+    );
+  
+    const wrongNotes = noteAttempts.filter((item) => !item.correct);
+    const wrongIntervals = intervalAttempts.filter((item) => !item.correct);
+  
+    const noteCounts = {};
+    wrongNotes.forEach((item) => {
+      noteCounts[item.note] = (noteCounts[item.note] || 0) + 1;
+    });
+  
+    const intervalCounts = {};
+    wrongIntervals.forEach((item) => {
+      intervalCounts[item.target] = (intervalCounts[item.target] || 0) + 1;
+    });
+  
+    const weakestNote = Object.entries(noteCounts).sort(
+      (a, b) => b[1] - a[1]
+    )[0];
+  
+    const weakestInterval = Object.entries(intervalCounts).sort(
+      (a, b) => b[1] - a[1]
+    )[0];
+  
+    const semitoneErrors = noteAttempts
+      .map((item) => item.semitoneDistance)
+      .filter((value) => value !== null && value !== undefined);
+  
+    const averageSemitoneError =
+      semitoneErrors.length > 0
+        ? (
+            semitoneErrors.reduce((sum, value) => sum + value, 0) /
+            semitoneErrors.length
+          ).toFixed(1)
+        : "N/A";
+  
+    const durationSeconds = sessionStartTime
+      ? Math.round((Date.now() - sessionStartTime) / 1000)
+      : 0;
+  
+    let recommendation = "Keep practising with your current settings.";
+  
+    if (weakestNote && weakestInterval) {
+      recommendation = `Focus next on ${weakestNote[0]} notes and ${weakestInterval[0]} intervals.`;
+    } else if (weakestNote) {
+      recommendation = `Focus next on ${weakestNote[0]} notes.`;
+    } else if (weakestInterval) {
+      recommendation = `Focus next on ${weakestInterval[0]} intervals.`;
+    } else if (Number(sessionAccuracy) >= 80) {
+      recommendation = "Strong session. You may be ready to increase the difficulty.";
+    }
+  
+    return {
+      totalAttempts,
+      correctAnswers,
+      sessionAccuracy,
+      noteAttempts: noteAttempts.length,
+      intervalAttempts: intervalAttempts.length,
+      weakestNote: weakestNote ? weakestNote[0] : "None",
+      weakestInterval: weakestInterval ? weakestInterval[0] : "None",
+      averageSemitoneError,
+      durationSeconds,
+      recommendation,
+    };
+  };
+
+  const endSession = () => {
+    const summary = generateSessionSummary();
+  
+    setLastSessionSummary(summary);
+    setSessionActive(false);
+    setSessionStartTime(null);
+  
+    setFeedbackMessage("Session complete. Review your recap before starting another session.");
+  };
+
   if (!selectedProfile) {
     return (
       <div className="pitch-page" style={styles.page}>
@@ -1157,6 +1301,9 @@ const nextHelper = helperCharacters.find(
                 onClick={() => setSelectedProfile(profile.id)}
                 style={{
                   ...styles.sideCard,
+                  backgroundColor: theme.sideCardBg,
+                  border: `1px solid ${theme.border}`,
+                  color: theme.heading,
                   width: "180px",
                   minHeight: "150px",
                   cursor: "pointer",
@@ -1172,7 +1319,13 @@ const nextHelper = helperCharacters.find(
             ))}
           </div>
   
-          <div className="profile-create-box">
+          <div
+            className="profile-create-box"
+            style={{
+              backgroundColor: theme.cardBg,
+              border: `1px solid ${theme.border}`,
+            }}
+          >
           <h2>Create New Profile</h2>
 
           <input
@@ -1181,6 +1334,10 @@ const nextHelper = helperCharacters.find(
             value={newProfileName}
             onChange={(e) => setNewProfileName(e.target.value)}
             placeholder="Enter profile name"
+            style={{
+              border: `1px solid ${theme.border}`,
+              color: theme.text,
+            }}
           />
 
           <button onClick={createProfile} style={styles.primaryButton}>
@@ -1202,9 +1359,12 @@ const nextHelper = helperCharacters.find(
     );
   }
 
+
+
+  // THIS IS MAIN RETURN 
   return (
-    <div style={styles.page}>
-      <div style={styles.shell}>
+    <div className="pitch-page" style={styles.page}>
+      <div className="pitch-shell" style={styles.shell}>
         <div style={styles.header}>
           <h1 style={styles.title}>
             {isChildMode ? "🎵 Ear Training Adventure" : "Ear Training App"}
@@ -1214,8 +1374,15 @@ const nextHelper = helperCharacters.find(
               ? "Listen carefully, choose your answer, and keep practising!"
               : "Adaptive pitch and interval training with personalised feedback."}
           </p>
-          <p style={{ marginTop: "8px", fontWeight: "bold", color: "#15803d" }}>
-          Profile:{" "}
+
+          <p
+            style={{
+              marginTop: "8px",
+              fontWeight: "bold",
+              color: theme.heading,
+            }}
+          >
+            Profile:{" "}
             {profiles.find((profile) => profile.id === selectedProfile)?.emoji}{" "}
             {profiles.find((profile) => profile.id === selectedProfile)?.name}
           </p>
@@ -1322,11 +1489,11 @@ const nextHelper = helperCharacters.find(
                 onClick={() => toggleCustomOctave(octave)}
                 style={{
                   ...styles.secondaryButton,
-                  background: selected
-                    ? "linear-gradient(135deg, #14b8a6, #0f766e)"
-                    : "#ffffff",
-                  color: selected ? "white" : "#14532d",
-                  border: selected ? "none" : "1px solid #bbf7d0",
+                background: selected
+                  ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`
+                  : "#ffffff",
+                color: selected ? "white" : theme.heading,
+                border: selected ? "none" : `1px solid ${theme.border}`,
                   boxShadow: selected
                     ? "0 6px 14px rgba(20, 184, 166, 0.35)"
                     : "none",
@@ -1366,6 +1533,25 @@ const nextHelper = helperCharacters.find(
       <button onClick={replayNote} style={styles.secondaryButton}>
         🔁 Replay
       </button>
+
+      <div className="button-row" style={{ marginTop: "12px" }}>
+        {!sessionActive ? (
+          <button onClick={startSession} style={styles.primaryButton}>
+            Start Session
+          </button>
+        ) : (
+          <button onClick={endSession} style={styles.secondaryButton}>
+            End Session
+          </button>
+        )}
+
+        {sessionActive && (
+          <p style={{ marginTop: "10px", fontWeight: "bold" }}>
+            Session active: {sessionAttempts.length} attempt
+            {sessionAttempts.length === 1 ? "" : "s"}
+          </p>
+        )}
+      </div>
 
       <div className="answer-grid" style={{ marginTop: "20px" }}>
         {(mode === "note"
@@ -1435,7 +1621,7 @@ const nextHelper = helperCharacters.find(
                 style={{
                  width: "100%",
                   height: "14px",
-                  backgroundColor: "#dcfce7",
+                  backgroundColor: theme.primarySoft,
                  borderRadius: "999px",
                  overflow: "hidden",
                }}
@@ -1444,13 +1630,66 @@ const nextHelper = helperCharacters.find(
                   style={{
                     width: `${xp % 100}%`,
                    height: "100%",
-                    background: "linear-gradient(135deg, #22c55e, #15803d)",
+                   background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`,
                  }}
                 />
              </div>
            </div>
           </div>
-  
+                 
+          {lastSessionSummary && (
+          <div style={styles.sideCard}>
+            <h2>{isChildMode ? "Session Recap ✔️" : "Session Recap"}</h2>
+
+            {lastSessionSummary.totalAttempts === 0 ? (
+              <p>{lastSessionSummary.message}</p>
+            ) : (
+              <>
+                <div style={styles.statRow}>
+                  <span>Attempts</span>
+                  <strong>{lastSessionSummary.totalAttempts}</strong>
+                </div>
+
+                <div style={styles.statRow}>
+                  <span>Correct</span>
+                  <strong>{lastSessionSummary.correctAnswers}</strong>
+                </div>
+
+                <div style={styles.statRow}>
+                  <span>Accuracy</span>
+                  <strong>{lastSessionSummary.sessionAccuracy}%</strong>
+                </div>
+
+                <div style={styles.statRow}>
+                  <span>Duration</span>
+                  <strong>{lastSessionSummary.durationSeconds}s</strong>
+                </div>
+
+                <div style={styles.statRow}>
+                  <span>Avg. semitone error</span>
+                  <strong>{lastSessionSummary.averageSemitoneError}</strong>
+                </div>
+
+                <div style={styles.statRow}>
+                  <span>Weak note</span>
+                  <strong>{lastSessionSummary.weakestNote}</strong>
+                </div>
+
+                <div style={styles.statRow}>
+                  <span>Weak interval</span>
+                  <strong>{lastSessionSummary.weakestInterval}</strong>
+                </div>
+
+                <p style={{ marginTop: "14px", lineHeight: "1.5" }}>
+                  <strong>Recommendation:</strong>{" "}
+                  {lastSessionSummary.recommendation}
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
+                
           <div style={styles.sideCard}>
           <h2>
            {isChildMode
