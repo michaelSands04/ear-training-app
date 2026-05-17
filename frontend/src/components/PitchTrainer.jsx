@@ -44,12 +44,17 @@ const difficultySettings = {
   },
   hard: {
     label: "Hard",
-    octaves: [3, 4, 5,],
+    octaves: [3, 4, 5],
     allowedIntervalDifficulties: ["easy", "medium", "hard"],
   },
   expert: {
     label: "Expert",
-    octaves: [2, 3, 4, 5,],
+    octaves: [2, 3, 4, 5],
+    allowedIntervalDifficulties: ["easy", "medium", "hard", "expert"],
+  },
+  custom: {
+    label: "Custom",
+    octaves: [],
     allowedIntervalDifficulties: ["easy", "medium", "hard", "expert"],
   },
 };
@@ -123,6 +128,7 @@ function PitchTrainer() {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [newProfileName, setNewProfileName] = useState("");
   const [profilesLoaded, setProfilesLoaded] = useState(false);
+  const [customOctaves, setCustomOctaves] = useState([4]);
 
   // Load saved data from browser storage
   useEffect(() => {
@@ -137,12 +143,12 @@ function PitchTrainer() {
     const savedMistakes = localStorage.getItem(key("mistakes"));
     const savedIntervalMistakes = localStorage.getItem(key("intervalMistakes"));
     const savedDifficulty = localStorage.getItem(key("difficulty"));
-  
+    const savedOctaveFocus = localStorage.getItem(key("octaveFocus"));
     const savedXp = localStorage.getItem(key("xp"));
     const savedLevel = localStorage.getItem(key("level"));
     const savedStreak = localStorage.getItem(key("streak"));
     const savedBestStreak = localStorage.getItem(key("bestStreak"));
-  
+    const savedCustomOctaves = localStorage.getItem(key("customOctaves"));
     const savedRecentAnswers = localStorage.getItem(key("recentAnswers"));
     const savedFeedbackMessage = localStorage.getItem(key("feedbackMessage"));
   
@@ -155,7 +161,9 @@ function PitchTrainer() {
     );
   
     setDifficulty(savedDifficulty !== null ? savedDifficulty : "easy");
-  
+    setCustomOctaves(
+      savedCustomOctaves !== null ? JSON.parse(savedCustomOctaves) : [4]
+    );
     setXp(savedXp !== null ? Number(savedXp) : 0);
     setLevel(savedLevel !== null ? Number(savedLevel) : 1);
     setStreak(savedStreak !== null ? Number(savedStreak) : 0);
@@ -196,12 +204,11 @@ function PitchTrainer() {
       JSON.stringify(intervalMistakes)
     );
     localStorage.setItem(key("difficulty"), difficulty);
-  
     localStorage.setItem(key("xp"), String(xp));
     localStorage.setItem(key("level"), String(level));
     localStorage.setItem(key("streak"), String(streak));
     localStorage.setItem(key("bestStreak"), String(bestStreak));
-  
+    localStorage.setItem(key("customOctaves"), JSON.stringify(customOctaves));
     localStorage.setItem(key("recentAnswers"), JSON.stringify(recentAnswers));
     localStorage.setItem(key("feedbackMessage"), feedbackMessage);
   }, [
@@ -218,6 +225,7 @@ function PitchTrainer() {
     bestStreak,
     recentAnswers,
     feedbackMessage,
+    customOctaves
   ]);
 
   useEffect(() => {
@@ -258,8 +266,16 @@ function PitchTrainer() {
     );
   };
 
+  const getActiveOctaves = () => {
+    if (difficulty === "custom") {
+      return customOctaves.length > 0 ? customOctaves : [4];
+    }
+  
+    return difficultySettings[difficulty].octaves;
+  };
+
   const createRandomPitch = (preferredNote = null) => {
-    const octaves = difficultySettings[difficulty].octaves;
+    const octaves = getActiveOctaves();
 
     const note =
       preferredNote || baseNotes[Math.floor(Math.random() * baseNotes.length)];
@@ -285,7 +301,7 @@ function PitchTrainer() {
     }
   
     // Before an exercise starts, show the default notes for the current difficulty
-    const defaultOctave = difficultySettings[difficulty].octaves[0];
+    const defaultOctave = getActiveOctaves()[0];
     return baseNotes.map((note) => `${note}${defaultOctave}`);
   };
 
@@ -467,7 +483,7 @@ function PitchTrainer() {
       availableIntervals.find((item) => item.name === selectedIntervalName) ||
       availableIntervals[Math.floor(Math.random() * availableIntervals.length)];
   
-    const maxAllowedOctave = Math.max(...difficultySettings[difficulty].octaves);
+    const maxAllowedOctave = Math.max(...getActiveOctaves());
     const maxAllowedMidi = (maxAllowedOctave + 1) * 12 + 11; // B of max octave
   
     let root = null;
@@ -989,6 +1005,10 @@ const nextHelper = helperCharacters.find(
     setStreak(0);
     setBestStreak(0);
     setFeedbackMessage("Complete a Few Exercises and I'll Peronalise your practice.")
+    setOctaveFocus("auto");
+    localStorage.removeItem(key("octaveFocus"));
+    setCustomOctaves([4]);
+    localStorage.removeItem(key("customOctaves"));
     if (selectedProfile) {
       const key = (name) => `${accountName}_${selectedProfile}_${name}`;
     
@@ -1021,6 +1041,43 @@ const nextHelper = helperCharacters.find(
         : "none",
     };
   };
+
+  const toggleCustomOctave = (octave) => {
+    setCustomOctaves((prev) => {
+      if (prev.includes(octave)) {
+        const updated = prev.filter((item) => item !== octave);
+        return updated.length > 0 ? updated : prev;
+      }
+  
+      return [...prev, octave].sort((a, b) => a - b);
+    });
+  
+    setResult("");
+    setAnswered(false);
+    setHasPlayed(false);
+    setCurrentPitch(null);
+    setCurrentNote("");
+    setCurrentInterval(null);
+    setRootPitch(null);
+  };
+
+
+  const getOctaveButtonStyle = (buttonOctave) => {
+    const isActive = octaveFocus === buttonOctave;
+  
+    return {
+      ...styles.secondaryButton,
+      background: isActive
+        ? "linear-gradient(135deg, #22c55e, #15803d)"
+        : "#ffffff",
+      color: isActive ? "white" : "#14532d",
+      border: isActive ? "none" : "1px solid #bbf7d0",
+      boxShadow: isActive
+        ? "0 6px 14px rgba(34, 197, 94, 0.35)"
+        : "none",
+      transform: isActive ? "scale(1.03)" : "scale(1)",
+    };
+  };
   
   const getDifficultyButtonStyle = (buttonDifficulty) => {
     const isActive = difficulty === buttonDifficulty;
@@ -1030,6 +1087,7 @@ const nextHelper = helperCharacters.find(
       medium: "#2563eb",
       hard: "#ea580c",
       expert: "#7c3aed",
+      custom: "#14b8a6",
     };
   
     const childColours = {
@@ -1037,6 +1095,7 @@ const nextHelper = helperCharacters.find(
       medium: "#60a5fa",
       hard: "#fb923c",
       expert: "#a78bfa",
+      custom: "#14b8a6",
     };
   
     const colours = isChildMode ? childColours : adultColours;
@@ -1240,9 +1299,57 @@ const nextHelper = helperCharacters.find(
               <button onClick={() => setDifficulty("medium")} style={getDifficultyButtonStyle("medium")}>📈 Medium</button>
               <button onClick={() => setDifficulty("hard")} style={getDifficultyButtonStyle("hard")}>⛰️ Hard</button>
               <button onClick={() => setDifficulty("expert")} style={getDifficultyButtonStyle("expert")}>👑 Expert</button>
-              <p>Current: <strong>{difficultySettings[difficulty].label}</strong></p>
+              <button onClick={() => setDifficulty("custom")} style={getDifficultyButtonStyle("custom")}>🎛️ Custom</button>
+              <p>
+              Current: <strong>{difficultySettings[difficulty].label}</strong>
+              {difficulty === "custom" && (
+                <>
+                  {" "}
+                  (
+                  {customOctaves.map((octave) => `Octave ${octave}`).join(", ")}
+                  )
+                </>
+              )}
+            </p>
             </div>
-  
+
+            {difficulty === "custom" && (
+  <div style={styles.card}>
+    <h2>{isChildMode ? "Choose your sound areas" : "Custom Octave Focus"}</h2>
+
+    <p style={{ marginBottom: "14px", color: "#64748b" }}>
+      Select one or more octaves to practise.
+    </p>
+
+    {[2, 3, 4, 5].map((octave) => {
+      const selected = customOctaves.includes(octave);
+
+      return (
+        <button
+          key={octave}
+          onClick={() => toggleCustomOctave(octave)}
+          style={{
+            ...styles.secondaryButton,
+            background: selected
+              ? "linear-gradient(135deg, #14b8a6, #0f766e)"
+              : "#ffffff",
+            color: selected ? "white" : "#14532d",
+            border: selected ? "none" : "1px solid #bbf7d0",
+            boxShadow: selected
+              ? "0 6px 14px rgba(20, 184, 166, 0.35)"
+              : "none",
+          }}
+        >
+          {selected ? "✅" : "⬜"} Octave {octave}
+        </button>
+      );
+    })}
+
+    <p style={{ marginTop: "14px" }}>
+      Selected: <strong>{customOctaves.map((oct) => `Octave ${oct}`).join(", ")}</strong>
+    </p>
+  </div>
+)}
             <div style={styles.card}>
               <p>
                 <strong>Mode:</strong>{" "}
