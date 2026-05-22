@@ -32,6 +32,10 @@ const allIntervals = [
   { name: "Major 7th", semitones: 11, difficulty: "expert" },
 ];
 
+const defaultCustomIntervals = allIntervals
+  .filter((interval) => interval.difficulty === "easy")
+  .map((interval) => interval.name);
+
 const difficultySettings = {
   easy: {
     label: "Easy",
@@ -173,18 +177,18 @@ function PitchTrainer() {
   const [newProfileAvatar, setNewProfileAvatar] = useState("🎧");
   const [profilesLoaded, setProfilesLoaded] = useState(false);
   const [customOctaves, setCustomOctaves] = useState([4]);
+  const [customIntervals, setCustomIntervals] = useState(defaultCustomIntervals);
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState(null);
   const [sessionAttempts, setSessionAttempts] = useState([]);
   const [lastSessionSummary, setLastSessionSummary] = useState(null);
+  const [lessonScreen, setLessonScreen] = useState("setup");
 
   
   
   // Load saved data from browser storage
   useEffect(() => {
     if (!selectedProfile) return;
-  
-    setProgressLoaded(false);
   
     const key = (name) => `${accountName}_${selectedProfile}_${name}`;
   
@@ -197,72 +201,57 @@ function PitchTrainer() {
     const savedLevel = localStorage.getItem(key("level"));
     const savedStreak = localStorage.getItem(key("streak"));
     const savedBestStreak = localStorage.getItem(key("bestStreak"));
-    const savedCustomOctaves = localStorage.getItem(key("customOctaves"));
     const savedRecentAnswers = localStorage.getItem(key("recentAnswers"));
     const savedFeedbackMessage = localStorage.getItem(key("feedbackMessage"));
+    const savedCustomOctaves = localStorage.getItem(key("customOctaves"));
+    const savedCustomIntervals = localStorage.getItem(key("customIntervals"));
   
-    setScore(savedScore !== null ? Number(savedScore) : 0);
-    setAttempts(savedAttempts !== null ? Number(savedAttempts) : 0);
-    setMistakes(savedMistakes !== null ? JSON.parse(savedMistakes) : {});
-  
-    setIntervalMistakes(
-      savedIntervalMistakes !== null ? JSON.parse(savedIntervalMistakes) : {}
-    );
-  
-    setDifficulty(savedDifficulty !== null ? savedDifficulty : "easy");
-    setCustomOctaves(
-      savedCustomOctaves !== null ? JSON.parse(savedCustomOctaves) : [4]
-    );
-    setXp(savedXp !== null ? Number(savedXp) : 0);
-    setLevel(savedLevel !== null ? Number(savedLevel) : 1);
-    setStreak(savedStreak !== null ? Number(savedStreak) : 0);
-    setBestStreak(savedBestStreak !== null ? Number(savedBestStreak) : 0);
-  
-    setRecentAnswers(
-      savedRecentAnswers !== null ? JSON.parse(savedRecentAnswers) : []
-    );
-  
-    setFeedbackMessage(
-      savedFeedbackMessage !== null
-        ? savedFeedbackMessage
-        : "Complete a few exercises and I'll personalise your practice."
-    );
-  
-    setCurrentNote("");
-    setCurrentPitch(null);
-    setCurrentInterval(null);
-    setRootPitch(null);
-    setResult("");
-    setAnswered(false);
-    setHasPlayed(false);
+    if (savedScore) setScore(Number(savedScore));
+    if (savedAttempts) setAttempts(Number(savedAttempts));
+    if (savedMistakes) setMistakes(JSON.parse(savedMistakes));
+    if (savedIntervalMistakes) {
+      setIntervalMistakes(JSON.parse(savedIntervalMistakes));
+    }
+    if (savedDifficulty) setDifficulty(savedDifficulty);
+    if (savedXp) setXp(Number(savedXp));
+    if (savedLevel) setLevel(Number(savedLevel));
+    if (savedStreak) setStreak(Number(savedStreak));
+    if (savedBestStreak) setBestStreak(Number(savedBestStreak));
+    if (savedRecentAnswers) setRecentAnswers(JSON.parse(savedRecentAnswers));
+    if (savedFeedbackMessage) setFeedbackMessage(savedFeedbackMessage);
+    if (savedCustomOctaves) setCustomOctaves(JSON.parse(savedCustomOctaves));
+    if (savedCustomIntervals) {
+      setCustomIntervals(JSON.parse(savedCustomIntervals));
+    }
   
     setProgressLoaded(true);
   }, [selectedProfile]);
 
   // Save progress to browser storage
   useEffect(() => {
-    if (!progressLoaded || !selectedProfile) return;
+    if (!selectedProfile || !progressLoaded) return;
   
     const key = (name) => `${accountName}_${selectedProfile}_${name}`;
   
-    localStorage.setItem(key("score"), String(score));
-    localStorage.setItem(key("attempts"), String(attempts));
+    localStorage.setItem(key("score"), score);
+    localStorage.setItem(key("attempts"), attempts);
     localStorage.setItem(key("mistakes"), JSON.stringify(mistakes));
     localStorage.setItem(
       key("intervalMistakes"),
       JSON.stringify(intervalMistakes)
     );
     localStorage.setItem(key("difficulty"), difficulty);
-    localStorage.setItem(key("xp"), String(xp));
-    localStorage.setItem(key("level"), String(level));
-    localStorage.setItem(key("streak"), String(streak));
-    localStorage.setItem(key("bestStreak"), String(bestStreak));
-    localStorage.setItem(key("customOctaves"), JSON.stringify(customOctaves));
+    localStorage.setItem(key("xp"), xp);
+    localStorage.setItem(key("level"), level);
+    localStorage.setItem(key("streak"), streak);
+    localStorage.setItem(key("bestStreak"), bestStreak);
     localStorage.setItem(key("recentAnswers"), JSON.stringify(recentAnswers));
     localStorage.setItem(key("feedbackMessage"), feedbackMessage);
+    localStorage.setItem(key("customOctaves"), JSON.stringify(customOctaves));
+    localStorage.setItem(key("customIntervals"), JSON.stringify(customIntervals));
   }, [
-    progressLoaded,
     selectedProfile,
+    progressLoaded,
     score,
     attempts,
     mistakes,
@@ -274,7 +263,8 @@ function PitchTrainer() {
     bestStreak,
     recentAnswers,
     feedbackMessage,
-    customOctaves
+    customOctaves,
+    customIntervals,
   ]);
 
   useEffect(() => {
@@ -318,13 +308,23 @@ function PitchTrainer() {
   };
 
   const getAvailableIntervals = () => {
-    const allowed = difficultySettings[difficulty].allowedIntervalDifficulties;
-
+    if (difficulty === "custom") {
+      return allIntervals.filter((interval) =>
+        customIntervals.includes(interval.name)
+      );
+    }
+  
+    const allowedDifficulties =
+      difficultySettings[difficulty].allowedIntervalDifficulties;
+  
     return allIntervals.filter((interval) =>
-      allowed.includes(interval.difficulty)
+      allowedDifficulties.includes(interval.difficulty)
     );
   };
 
+  
+
+  // allows me to have custom octaves 
   const getActiveOctaves = () => {
     if (difficulty === "custom") {
       return customOctaves.length > 0 ? customOctaves : [4];
@@ -507,6 +507,10 @@ function PitchTrainer() {
 
   const generateInterval = () => {
     const availableIntervals = getAvailableIntervals();
+    if (availableIntervals.length === 0) {
+      setResult("Please select at least one interval.");
+      return;
+    }
     const recentWeakIntervals = getRecentWeakIntervals();
   
     let selectedIntervalName = null;
@@ -954,7 +958,16 @@ statRow: {
     setSessionAttempts([]);
     setLastSessionSummary(null);
     setResult("");
-    setFeedbackMessage("Session started. Complete exercises and I’ll summarise your progress.");
+    setAnswered(false);
+    setHasPlayed(false);
+    setCurrentPitch(null);
+    setCurrentNote("");
+    setCurrentInterval(null);
+    setRootPitch(null);
+  
+    if (isChildMode) {
+      setLessonScreen("lesson");
+    }
   };
 
   const checkAnswer = (answer) => {
@@ -1168,6 +1181,7 @@ statRow: {
     localStorage.removeItem(key("recentAnswers"));
     localStorage.removeItem(key("feedbackMessage"));
     localStorage.removeItem(key("customOctaves"));
+    localStorage.removeItem(key("customIntervals"));
   
     setProfiles((prev) => prev.filter((profile) => profile.id !== profileId));
   
@@ -1182,24 +1196,18 @@ statRow: {
     setAttempts(0);
     setMistakes({});
     setIntervalMistakes({});
-    setResult("");
-    setAnswered(false);
-    setHasPlayed(false);
-    setCurrentNote("");
-    setCurrentPitch(null);
-    setCurrentInterval(null);
-    setRootPitch(null);
     setXp(0);
     setLevel(1);
     setStreak(0);
     setBestStreak(0);
-    setFeedbackMessage("Complete a Few Exercises and I'll Peronalise your practice.")
+    setRecentAnswers([]);
+    setFeedbackMessage("Complete a few exercises and I'll personalise your practice.");
     setCustomOctaves([4]);
-   
-    
+    setCustomIntervals(defaultCustomIntervals);
+  
     if (selectedProfile) {
       const key = (name) => `${accountName}_${selectedProfile}_${name}`;
-    
+  
       localStorage.removeItem(key("score"));
       localStorage.removeItem(key("attempts"));
       localStorage.removeItem(key("mistakes"));
@@ -1212,6 +1220,7 @@ statRow: {
       localStorage.removeItem(key("recentAnswers"));
       localStorage.removeItem(key("feedbackMessage"));
       localStorage.removeItem(key("customOctaves"));
+      localStorage.removeItem(key("customIntervals"));
     }
   };
 
@@ -1232,6 +1241,17 @@ statRow: {
         : "none",
       transform: isActive ? "scale(1.03)" : "scale(1)",
     };
+  };
+
+  const toggleCustomInterval = (intervalName) => {
+    setCustomIntervals((prev) => {
+      if (prev.includes(intervalName)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((name) => name !== intervalName);
+      }
+  
+      return [...prev, intervalName];
+    });
   };
 
   const toggleCustomOctave = (octave) => {
@@ -1410,7 +1430,6 @@ statRow: {
   };
 
 
-
   const endSession = () => {
     const summary = generateSessionSummary();
   
@@ -1418,7 +1437,20 @@ statRow: {
     setSessionActive(false);
     setSessionStartTime(null);
   
-    setFeedbackMessage("Session complete. Review your recap before starting another session.");
+    if (isChildMode) {
+      setLessonScreen("recap");
+    }
+  };
+
+  const returnToSetup = () => {
+    setLessonScreen("setup");
+    setResult("");
+    setAnswered(false);
+    setHasPlayed(false);
+    setCurrentPitch(null);
+    setCurrentNote("");
+    setCurrentInterval(null);
+    setRootPitch(null);
   };
 
   const visibleProfiles = profiles.filter(
@@ -1614,122 +1646,380 @@ statRow: {
           </button>
         </div>
         <div className="pitch-layout">
-  <main className="pitch-main">
-    <div style={styles.card}>
-      <h2>{isChildMode ? "Choose your game mode" : "Training Mode"}</h2>
-
-      <div className="button-row">
-        <button
-          onClick={() => setMode("note")}
-          style={getModeButtonStyle("note")}
-        >
-          🎵 Note Mode
-        </button>
-
-        <button
-          onClick={() => setMode("interval")}
-          style={getModeButtonStyle("interval")}
-        >
-          📊 Interval Mode
-        </button>
-      </div>
-    </div>
-
-    <div style={styles.card}>
-      <h2>{isChildMode ? "Choose your challenge" : "Difficulty"}</h2>
-
-      <div className="button-row">
-        <button
-          onClick={() => setDifficulty("easy")}
-          style={getDifficultyButtonStyle("easy")}
-        >
-          ⭐ Easy
-        </button>
-
-        <button
-          onClick={() => setDifficulty("medium")}
-          style={getDifficultyButtonStyle("medium")}
-        >
-          📈 Medium
-        </button>
-
-        <button
-          onClick={() => setDifficulty("hard")}
-          style={getDifficultyButtonStyle("hard")}
-        >
-          ⛰️ Hard
-        </button>
-
-        <button
-          onClick={() => setDifficulty("expert")}
-          style={getDifficultyButtonStyle("expert")}
-        >
-          👑 Expert
-        </button>
-
-        <button
-          onClick={() => setDifficulty("custom")}
-          style={getDifficultyButtonStyle("custom")}
-        >
-          🎛️ Custom
-        </button>
-      </div>
-
-      <p>
-        Current: <strong>{difficultySettings[difficulty].label}</strong>
-        {difficulty === "custom" && (
-          <>
-            {" "}
-            ({customOctaves.map((octave) => `Octave ${octave}`).join(", ")})
-          </>
-        )}
-      </p>
-    </div>
-
-    {difficulty === "custom" && (
+        <main className="pitch-main">
+  {!isChildMode && (
+    <>
+      {/* ADULT MODE: keep the current dashboard layout */}
       <div style={styles.card}>
-        <h2>{isChildMode ? "Choose your sound areas" : "Custom Octave Focus"}</h2>
-
-        <p style={{ marginBottom: "14px", color: "#64748b" }}>
-          Select one or more octaves to practise.
-        </p>
+        <h2>Training Mode</h2>
 
         <div className="button-row">
-          {[2, 3, 4, 5].map((octave) => {
-            const selected = customOctaves.includes(octave);
+          <button
+            onClick={() => setMode("note")}
+            style={getModeButtonStyle("note")}
+          >
+            🎵 Note Mode
+          </button>
 
-            return (
-              <button
-                key={octave}
-                onClick={() => toggleCustomOctave(octave)}
-                style={{
-                  ...styles.secondaryButton,
-                background: selected
-                  ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`
-                  : "#ffffff",
-                color: selected ? "white" : theme.heading,
-                border: selected ? "none" : `1px solid ${theme.border}`,
-                  boxShadow: selected
-                    ? "0 6px 14px rgba(20, 184, 166, 0.35)"
-                    : "none",
-                }}
-              >
-                {selected ? "✅" : "⬜"} Octave {octave}
-              </button>
-            );
-          })}
+          <button
+            onClick={() => setMode("interval")}
+            style={getModeButtonStyle("interval")}
+          >
+            📊 Interval Mode
+          </button>
+        </div>
+      </div>
+
+      <div style={styles.card}>
+        <h2>Difficulty</h2>
+
+        <div className="button-row">
+          <button
+            onClick={() => setDifficulty("easy")}
+            style={getDifficultyButtonStyle("easy")}
+          >
+            ⭐ Easy
+          </button>
+
+          <button
+            onClick={() => setDifficulty("medium")}
+            style={getDifficultyButtonStyle("medium")}
+          >
+            📈 Medium
+          </button>
+
+          <button
+            onClick={() => setDifficulty("hard")}
+            style={getDifficultyButtonStyle("hard")}
+          >
+            ⛰️ Hard
+          </button>
+
+          <button
+            onClick={() => setDifficulty("expert")}
+            style={getDifficultyButtonStyle("expert")}
+          >
+            👑 Expert
+          </button>
+
+          <button
+            onClick={() => setDifficulty("custom")}
+            style={getDifficultyButtonStyle("custom")}
+          >
+            🎛️ Custom
+          </button>
         </div>
 
-        <p style={{ marginTop: "14px" }}>
-          Selected:{" "}
-          <strong>
-            {customOctaves.map((oct) => `Octave ${oct}`).join(", ")}
-          </strong>
+        <p>
+          Current: <strong>{difficultySettings[difficulty].label}</strong>
+          {difficulty === "custom" && (
+            <>
+              {" "}
+              ({customOctaves.map((octave) => `Octave ${octave}`).join(", ")})
+            </>
+          )}
         </p>
       </div>
-    )}
 
+      {difficulty === "custom" && (
+        <div style={styles.card}>
+          <h2>Custom Octave Focus</h2>
+
+          <p style={{ marginBottom: "14px", color: theme.muted }}>
+            Select one or more octaves to practise.
+          </p>
+
+          <div className="button-row">
+            {[2, 3, 4, 5].map((octave) => {
+              const selected = customOctaves.includes(octave);
+
+              return (
+                <button
+                  key={octave}
+                  onClick={() => toggleCustomOctave(octave)}
+                  style={{
+                    ...styles.secondaryButton,
+                    background: selected
+                      ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`
+                      : "#ffffff",
+                    color: selected ? "white" : theme.heading,
+                    border: selected ? "none" : `1px solid ${theme.border}`,
+                  }}
+                >
+                  {selected ? "✅" : "⬜"} Octave {octave}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+{difficulty === "custom" && mode === "interval" && (
+  <div style={styles.card}>
+    <h2>{isChildMode ? "Choose your intervals" : "Custom Interval Focus"}</h2>
+
+    <p style={{ marginBottom: "14px", color: theme.muted }}>
+      Select one or more intervals to include in interval training.
+    </p>
+
+    <div className="button-row">
+      {allIntervals.map((interval) => {
+        const selected = customIntervals.includes(interval.name);
+
+        return (
+          <button
+            key={interval.name}
+            onClick={() => toggleCustomInterval(interval.name)}
+            style={{
+              ...styles.secondaryButton,
+              background: selected
+                ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`
+                : "#ffffff",
+              color: selected ? "white" : theme.heading,
+              border: selected ? "none" : `1px solid ${theme.border}`,
+            }}
+          >
+            {selected ? "✅" : "⬜"} {interval.name}
+          </button>
+        );
+      })}
+    </div>
+
+    <p style={{ marginTop: "14px" }}>
+      Selected: <strong>{customIntervals.join(", ")}</strong>
+    </p>
+  </div>
+)}
+
+      {/* Adult exercise card stays on dashboard */}
+      <div style={styles.card}>
+        <p>
+          <strong>Mode:</strong>{" "}
+          {mode === "note" ? "Note Recognition" : "Interval Training"}
+        </p>
+
+        {mode === "interval" && rootPitch && (
+          <p>
+            <strong>Reference Note:</strong> {rootPitch.label}
+          </p>
+        )}
+
+        <button onClick={generateNote} style={styles.primaryButton}>
+          New Exercise
+        </button>
+
+        <button onClick={replayNote} style={styles.secondaryButton}>
+          🔁 Replay
+        </button>
+
+        <div className="button-row" style={{ marginTop: "12px" }}>
+          {!sessionActive ? (
+            <button onClick={startSession} style={styles.primaryButton}>
+              Start Session
+            </button>
+          ) : (
+            <button onClick={endSession} style={styles.secondaryButton}>
+              End Session
+            </button>
+          )}
+
+          {sessionActive && (
+            <p style={{ marginTop: "10px", fontWeight: "bold" }}>
+              Session active: {sessionAttempts.length} attempt
+              {sessionAttempts.length === 1 ? "" : "s"}
+            </p>
+          )}
+        </div>
+
+        <div className="answer-grid" style={{ marginTop: "20px" }}>
+          {(mode === "note"
+            ? getCurrentNoteAnswers()
+            : getAvailableIntervals().map((interval) => interval.name)
+          ).map((item) => (
+            <button
+              key={item}
+              onClick={() => checkAnswer(item)}
+              style={styles.answerButton}
+              disabled={answered}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+
+        <h2>{getResultMessage()}</h2>
+      </div>
+    </>
+  )}
+
+  {isChildMode && lessonScreen === "setup" && (
+    <>
+      <div style={styles.card}>
+        <h2>Choose your game mode</h2>
+
+        <div className="button-row">
+          <button
+            onClick={() => setMode("note")}
+            style={getModeButtonStyle("note")}
+          >
+            🎵 Note Mode
+          </button>
+
+          <button
+            onClick={() => setMode("interval")}
+            style={getModeButtonStyle("interval")}
+          >
+            📊 Interval Mode
+          </button>
+        </div>
+      </div>
+
+      <div style={styles.card}>
+        <h2>Choose your challenge</h2>
+
+        <div className="button-row">
+          <button
+            onClick={() => setDifficulty("easy")}
+            style={getDifficultyButtonStyle("easy")}
+          >
+            ⭐ Easy
+          </button>
+
+          <button
+            onClick={() => setDifficulty("medium")}
+            style={getDifficultyButtonStyle("medium")}
+          >
+            📈 Medium
+          </button>
+
+          <button
+            onClick={() => setDifficulty("hard")}
+            style={getDifficultyButtonStyle("hard")}
+          >
+            ⛰️ Hard
+          </button>
+
+          <button
+            onClick={() => setDifficulty("expert")}
+            style={getDifficultyButtonStyle("expert")}
+          >
+            👑 Expert
+          </button>
+
+          <button
+            onClick={() => setDifficulty("custom")}
+            style={getDifficultyButtonStyle("custom")}
+          >
+            🎛️ Custom
+          </button>
+        </div>
+
+        <p>
+          Current: <strong>{difficultySettings[difficulty].label}</strong>
+          {difficulty === "custom" && (
+            <>
+              {" "}
+              ({customOctaves.map((octave) => `Octave ${octave}`).join(", ")})
+            </>
+          )}
+        </p>
+      </div>
+
+      {difficulty === "custom" && (
+        <div style={styles.card}>
+          <h2>Choose your sound areas</h2>
+
+          <p style={{ marginBottom: "14px", color: theme.muted }}>
+            Select one or more octaves to practise.
+          </p>
+
+          <div className="button-row">
+            {[2, 3, 4, 5].map((octave) => {
+              const selected = customOctaves.includes(octave);
+
+              return (
+                <button
+                  key={octave}
+                  onClick={() => toggleCustomOctave(octave)}
+                  style={{
+                    ...styles.secondaryButton,
+                    background: selected
+                      ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`
+                      : "#ffffff",
+                    color: selected ? "white" : theme.heading,
+                    border: selected ? "none" : `1px solid ${theme.border}`,
+                  }}
+                >
+                  {selected ? "✅" : "⬜"} Octave {octave}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+{difficulty === "custom" && mode === "interval" && (
+  <div style={styles.card}>
+    <h2>{isChildMode ? "Choose your intervals" : "Custom Interval Focus"}</h2>
+
+    <p style={{ marginBottom: "14px", color: theme.muted }}>
+      Select one or more intervals to include in interval training.
+    </p>
+
+    <div className="button-row">
+      {allIntervals.map((interval) => {
+        const selected = customIntervals.includes(interval.name);
+
+        return (
+          <button
+            key={interval.name}
+            onClick={() => toggleCustomInterval(interval.name)}
+            style={{
+              ...styles.secondaryButton,
+              background: selected
+                ? `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`
+                : "#ffffff",
+              color: selected ? "white" : theme.heading,
+              border: selected ? "none" : `1px solid ${theme.border}`,
+            }}
+          >
+            {selected ? "✅" : "⬜"} {interval.name}
+          </button>
+        );
+      })}
+    </div>
+
+    <p style={{ marginTop: "14px" }}>
+      Selected: <strong>{customIntervals.join(", ")}</strong>
+    </p>
+  </div>
+)}
+
+      <div style={styles.card}>
+        <h2>Ready for your lesson?</h2>
+
+        <p style={{ color: theme.muted }}>
+          You will practise{" "}
+          <strong>{mode === "note" ? "note recognition" : "interval training"}</strong>{" "}
+          on <strong>{difficultySettings[difficulty].label}</strong> difficulty.
+          {difficulty === "custom" && mode === "interval" && (
+            <>
+              {" "}Selected intervals: <strong>{customIntervals.join(", ")}</strong>.
+            </>
+          )}
+        </p>
+
+        <button onClick={startSession} style={styles.primaryButton}>
+          Start Lesson
+        </button>
+      </div>
+    </>
+  )}
+
+  {isChildMode && lessonScreen === "lesson" && (
     <div style={styles.card}>
+      <h2>Listen and choose!</h2>
+
       <p>
         <strong>Mode:</strong>{" "}
         {mode === "note" ? "Note Recognition" : "Interval Training"}
@@ -1742,31 +2032,12 @@ statRow: {
       )}
 
       <button onClick={generateNote} style={styles.primaryButton}>
-        {isChildMode ? "🎵 New Sound" : "New Exercise"}
+        🎵 New Sound
       </button>
 
       <button onClick={replayNote} style={styles.secondaryButton}>
         🔁 Replay
       </button>
-
-      <div className="button-row" style={{ marginTop: "12px" }}>
-        {!sessionActive ? (
-          <button onClick={startSession} style={styles.primaryButton}>
-            Start Session
-          </button>
-        ) : (
-          <button onClick={endSession} style={styles.secondaryButton}>
-            End Session
-          </button>
-        )}
-
-        {sessionActive && (
-          <p style={{ marginTop: "10px", fontWeight: "bold" }}>
-            Session active: {sessionAttempts.length} attempt
-            {sessionAttempts.length === 1 ? "" : "s"}
-          </p>
-        )}
-      </div>
 
       <div className="answer-grid" style={{ marginTop: "20px" }}>
         {(mode === "note"
@@ -1785,237 +2056,362 @@ statRow: {
       </div>
 
       <h2>{getResultMessage()}</h2>
+
+      <button onClick={endSession} style={styles.secondaryButton}>
+        End Lesson
+      </button>
     </div>
-  </main>
-  
-          <aside className="pitch-sidebar">
-          <div style={styles.sideCard}>
-            <h2>🏆 {isChildMode ? "Your Progress" : "Progress"}</h2>
+  )}
 
-            <div style={styles.statRow}>
-              <span>⭐ Score</span>
-             <strong>{score}</strong>
-           </div>
+  {isChildMode && lessonScreen === "recap" && lastSessionSummary && (
+    <div style={styles.card}>
+      <h2>Lesson Recap ⭐</h2>
 
-           <div style={styles.statRow}>
-             <span>🎯 Attempts</span>
-             <strong>{attempts}</strong>
-            </div>
-
-           <div style={styles.statRow}>
-              <span>📈 Accuracy</span>
-              <strong>{accuracy}%</strong>
-            </div>
-
-            <div style={styles.statRow}>
-             <span>✨ Experience</span>
-             <strong>{xp}</strong>
-           </div>
-
-            <div style={styles.statRow}>
-             <span>🏅 Level</span>
-             <strong>{level}</strong>
-            </div>
-
-            <div style={styles.statRow}>
-             <span>🔥 Streak</span>
-             <strong>{streak}</strong>
-           </div>
-
-           <div style={styles.statRow}>
-              <span>🏆 Best Streak</span>
-              <strong>{bestStreak}</strong>
-            </div>
-
-            <div style={{ marginTop: "16px", textAlign: "left" }}>
-             <p style={{ marginBottom: "6px" }}>
-               Experience to next level: {xp % 100}/100
-             </p>
-
-             <div
-                style={{
-                 width: "100%",
-                  height: "14px",
-                  backgroundColor: theme.primarySoft,
-                 borderRadius: "999px",
-                 overflow: "hidden",
-               }}
-             >
-                <div
-                  style={{
-                    width: `${xp % 100}%`,
-                   height: "100%",
-                   background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`,
-                 }}
-                />
-             </div>
-           </div>
-          </div>
-          <div style={styles.sideCard}>
-            <h2>{isChildMode ? "Animal Friends ⭐" : "Profile Avatars"}</h2>
-
-            <p style={{ color: theme.muted, fontSize: "14px", marginBottom: "12px" }}>
-              {isChildMode
-                ? "Unlock animal friends by gaining experience and levelling up."
-                : "Unlock profile avatars by gaining experience and levelling up."}
-            </p>
-
-            {activeAvatarOptions.map((avatar) => {
-              const unlocked = level >= avatar.levelRequired;
-              const selected = currentProfile?.emoji === avatar.emoji;
-
-              return (
-                <button
-                  key={avatar.name}
-                  disabled={!unlocked}
-                  onClick={() => updateProfileAvatar(avatar.emoji)}
-                  style={{
-                    width: "100%",
-                    marginBottom: "8px",
-                    padding: "10px",
-                    borderRadius: "14px",
-                    border: selected
-                      ? `2px solid ${theme.primary}`
-                      : `1px solid ${theme.border}`,
-                    backgroundColor: unlocked ? theme.cardBg : "#f1f5f9",
-                    color: unlocked ? theme.heading : "#94a3b8",
-                    opacity: unlocked ? 1 : 0.55,
-                    cursor: unlocked ? "pointer" : "not-allowed",
-                    textAlign: "left",
-                  }}
-                >
-                  <strong>
-                    {avatar.emoji} {avatar.name}
-                  </strong>
-
-                  <p style={{ margin: "4px 0 0", fontSize: "13px" }}>
-                    {unlocked
-                      ? selected
-                        ? "Currently selected"
-                        : "Unlocked"
-                      : `Unlocks at Level ${avatar.levelRequired}`}
-                  </p>
-                </button>
-              );
-            })}
-
-            {nextAvatar && (
-              <p style={{ marginTop: "12px", fontSize: "14px", color: theme.muted }}>
-                Next unlock: {nextAvatar.emoji} {nextAvatar.name} at Level{" "}
-                {nextAvatar.levelRequired}
-              </p>
-            )}
-          </div>
-
-          {lastSessionSummary && (
-          <div style={styles.sideCard}>
-            <h2>{isChildMode ? "Session Recap ✔️" : "Session Recap"}</h2>
-
-            {lastSessionSummary.totalAttempts === 0 ? (
-              <p>{lastSessionSummary.message}</p>
-            ) : (
-              <>
-                <div style={styles.statRow}>
-                  <span>Attempts</span>
-                  <strong>{lastSessionSummary.totalAttempts}</strong>
-                </div>
-
-                <div style={styles.statRow}>
-                  <span>Correct</span>
-                  <strong>{lastSessionSummary.correctAnswers}</strong>
-                </div>
-
-                <div style={styles.statRow}>
-                  <span>Accuracy</span>
-                  <strong>{lastSessionSummary.sessionAccuracy}%</strong>
-                </div>
-
-                <div style={styles.statRow}>
-                  <span>Duration</span>
-                  <strong>{lastSessionSummary.durationSeconds}s</strong>
-                </div>
-
-                <div style={styles.statRow}>
-                  <span>Avg. semitone error</span>
-                  <strong>{lastSessionSummary.averageSemitoneError}</strong>
-                </div>
-
-                <div style={styles.statRow}>
-                  <span>Weak note</span>
-                  <strong>{lastSessionSummary.weakestNote}</strong>
-                </div>
-
-                <div style={styles.statRow}>
-                  <span>Weak interval</span>
-                  <strong>{lastSessionSummary.weakestInterval}</strong>
-                </div>
-
-                <p style={{ marginTop: "14px", lineHeight: "1.5" }}>
-                  <strong>Recommendation:</strong>{" "}
-                  {lastSessionSummary.recommendation}
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-                
-          <div style={styles.sideCard}>
-          <h2>
-          {isChildMode
-            ? `${currentProfile?.emoji || "🐸"} ${currentProfile?.name || "Helper"} Says`
-            : "Personalised Feedback"}
-        </h2>
-
-        {isChildMode && (
-        <p style={{ fontSize: "14px", color: theme.muted, marginBottom: "10px" }}>
-          Your selected animal friend will help guide your practice.
-        </p>
-      )}
-
-         <p style={{ lineHeight: "1.5", fontSize: "15px" }}>
-            {getFeedbackMessage()}
+      {lastSessionSummary.totalAttempts === 0 ? (
+        <p>{lastSessionSummary.message}</p>
+      ) : (
+        <>
+          <p>
+            You completed <strong>{lastSessionSummary.totalAttempts}</strong>{" "}
+            exercise{lastSessionSummary.totalAttempts === 1 ? "" : "s"}.
           </p>
 
-          
+          <div style={styles.statRow}>
+            <span>Correct</span>
+            <strong>{lastSessionSummary.correctAnswers}</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Accuracy</span>
+            <strong>{lastSessionSummary.sessionAccuracy}%</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Duration</span>
+            <strong>{lastSessionSummary.durationSeconds}s</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Avg. semitone error</span>
+            <strong>{lastSessionSummary.averageSemitoneError}</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Weak note</span>
+            <strong>{lastSessionSummary.weakestNote}</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Weak interval</span>
+            <strong>{lastSessionSummary.weakestInterval}</strong>
+          </div>
+
+          <p style={{ marginTop: "14px", lineHeight: "1.5" }}>
+            <strong>Recommendation:</strong>{" "}
+            {lastSessionSummary.recommendation}
+          </p>
+        </>
+      )}
+
+      <button onClick={returnToSetup} style={styles.primaryButton}>
+        Back to Setup
+      </button>
+    </div>
+  )}
+</main>
+  
+<aside className="pitch-sidebar">
+  {/* Full progress card:
+      - Always visible in adult mode
+      - Visible in child setup/recap
+      - Hidden during child lesson screen */}
+  {(!isChildMode || lessonScreen !== "lesson") && (
+    <div style={styles.sideCard}>
+      <h2>🏆 {isChildMode ? "Your Progress" : "Progress"}</h2>
+
+      <div style={styles.statRow}>
+        <span>⭐ Score</span>
+        <strong>{score}</strong>
       </div>
-  
-            {!isChildMode && (
-              <div style={styles.sideCard}>
-                <h2>Weak Areas</h2>
-  
-                <h3>Notes</h3>
-                {Object.keys(mistakes).length === 0 ? (
-                  <p>No weak note areas yet.</p>
-                ) : (
-                  <ul>
-                    {Object.entries(mistakes).map(([note, count]) => (
-                      <li key={note}>
-                        {note}: {count} mistake{count > 1 ? "s" : ""}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-  
-                <h3>Intervals</h3>
-                {Object.keys(intervalMistakes).length === 0 ? (
-                  <p>No weak interval areas yet.</p>
-                ) : (
-                  <ul>
-                    {Object.entries(intervalMistakes).map(([interval, count]) => (
-                      <li key={interval}>
-                        {interval}: {count} mistake{count > 1 ? "s" : ""}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-  
-            <button onClick={resetProgress} style={styles.secondaryButton}>
-              Reset Progress
-            </button>
-          </aside>
+
+      <div style={styles.statRow}>
+        <span>🎯 Attempts</span>
+        <strong>{attempts}</strong>
+      </div>
+
+      <div style={styles.statRow}>
+        <span>📈 Accuracy</span>
+        <strong>{accuracy}%</strong>
+      </div>
+
+      <div style={styles.statRow}>
+        <span>✨ Experience</span>
+        <strong>{xp}</strong>
+      </div>
+
+      <div style={styles.statRow}>
+        <span>🏅 Level</span>
+        <strong>{level}</strong>
+      </div>
+
+      <div style={styles.statRow}>
+        <span>🔥 Streak</span>
+        <strong>{streak}</strong>
+      </div>
+
+      <div style={styles.statRow}>
+        <span>🏆 Best Streak</span>
+        <strong>{bestStreak}</strong>
+      </div>
+
+      <div style={{ marginTop: "16px", textAlign: "left" }}>
+        <p style={{ marginBottom: "6px" }}>
+          Experience to next level: {xp % 100}/100
+        </p>
+
+        <div
+          style={{
+            width: "100%",
+            height: "14px",
+            backgroundColor: theme.primarySoft,
+            borderRadius: "999px",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${xp % 100}%`,
+              height: "100%",
+              background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Simple child lesson card:
+      Only visible during the child lesson screen */}
+  {isChildMode && lessonScreen === "lesson" && (
+    <div style={styles.sideCard}>
+      <h2>{currentProfile?.emoji || "🐸"} Keep going!</h2>
+
+      <p style={{ color: theme.muted, lineHeight: "1.5" }}>
+        Listen carefully, choose your answer, and build your experience.
+      </p>
+
+      <div style={styles.statRow}>
+        <span>🏅 Level</span>
+        <strong>{level}</strong>
+      </div>
+
+      <div style={styles.statRow}>
+        <span>🔥 Streak</span>
+        <strong>{streak}</strong>
+      </div>
+
+      <p style={{ marginTop: "12px", marginBottom: "6px", fontWeight: "bold" }}>
+        Experience to next level: {xp % 100}/100
+      </p>
+
+      <div
+        style={{
+          width: "100%",
+          height: "14px",
+          backgroundColor: theme.primarySoft,
+          borderRadius: "999px",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${xp % 100}%`,
+            height: "100%",
+            background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`,
+          }}
+        />
+      </div>
+    </div>
+  )}
+
+  {/* Avatar collection:
+      - Visible in adult mode
+      - Visible in child setup/recap
+      - Hidden during child lesson screen */}
+  {(!isChildMode || lessonScreen !== "lesson") && (
+    <div style={styles.sideCard}>
+      <h2>{isChildMode ? "Animal Friends ⭐" : "Profile Avatars"}</h2>
+
+      <p style={{ color: theme.muted, fontSize: "14px", marginBottom: "12px" }}>
+        {isChildMode
+          ? "Unlock animal friends by gaining experience and levelling up."
+          : "Unlock profile avatars by gaining experience and levelling up."}
+      </p>
+
+      {activeAvatarOptions.map((avatar) => {
+        const unlocked = level >= avatar.levelRequired;
+        const selected = currentProfile?.emoji === avatar.emoji;
+
+        return (
+          <button
+            key={avatar.name}
+            disabled={!unlocked}
+            onClick={() => updateProfileAvatar(avatar.emoji)}
+            style={{
+              width: "100%",
+              marginBottom: "8px",
+              padding: "10px",
+              borderRadius: "14px",
+              border: selected
+                ? `2px solid ${theme.primary}`
+                : `1px solid ${theme.border}`,
+              backgroundColor: unlocked ? theme.cardBg : "#f1f5f9",
+              color: unlocked ? theme.heading : "#94a3b8",
+              opacity: unlocked ? 1 : 0.55,
+              cursor: unlocked ? "pointer" : "not-allowed",
+              textAlign: "left",
+            }}
+          >
+            <strong>
+              {avatar.emoji} {avatar.name}
+            </strong>
+
+            <p style={{ margin: "4px 0 0", fontSize: "13px" }}>
+              {unlocked
+                ? selected
+                  ? "Currently selected"
+                  : "Unlocked"
+                : `Unlocks at Level ${avatar.levelRequired}`}
+            </p>
+          </button>
+        );
+      })}
+
+      {nextAvatar && (
+        <p style={{ marginTop: "12px", fontSize: "14px", color: theme.muted }}>
+          Next unlock: {nextAvatar.emoji} {nextAvatar.name} at Level{" "}
+          {nextAvatar.levelRequired}
+        </p>
+      )}
+    </div>
+  )}
+
+  {/* Sidebar recap:
+      - Adult mode can still show recap in sidebar
+      - Child mode does NOT show this during recap, because child recap is now in main area */}
+  {(!isChildMode || lessonScreen !== "recap") && lastSessionSummary && (
+    <div style={styles.sideCard}>
+      <h2>{isChildMode ? "Session Recap ✔️" : "Session Recap"}</h2>
+
+      {lastSessionSummary.totalAttempts === 0 ? (
+        <p>{lastSessionSummary.message}</p>
+      ) : (
+        <>
+          <div style={styles.statRow}>
+            <span>Attempts</span>
+            <strong>{lastSessionSummary.totalAttempts}</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Correct</span>
+            <strong>{lastSessionSummary.correctAnswers}</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Accuracy</span>
+            <strong>{lastSessionSummary.sessionAccuracy}%</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Duration</span>
+            <strong>{lastSessionSummary.durationSeconds}s</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Avg. semitone error</span>
+            <strong>{lastSessionSummary.averageSemitoneError}</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Weak note</span>
+            <strong>{lastSessionSummary.weakestNote}</strong>
+          </div>
+
+          <div style={styles.statRow}>
+            <span>Weak interval</span>
+            <strong>{lastSessionSummary.weakestInterval}</strong>
+          </div>
+
+          <p style={{ marginTop: "14px", lineHeight: "1.5" }}>
+            <strong>Recommendation:</strong>{" "}
+            {lastSessionSummary.recommendation}
+          </p>
+        </>
+      )}
+    </div>
+  )}
+
+  {/* Feedback/helper card:
+      Keep visible in both modes.
+      Useful during the child lesson screen because it acts like the helper. */}
+  <div style={styles.sideCard}>
+    <h2>
+      {isChildMode
+        ? `${currentProfile?.emoji || "🐸"} ${currentProfile?.name || "Helper"} Says`
+        : "Personalised Feedback"}
+    </h2>
+
+    {isChildMode && (
+      <p style={{ fontSize: "14px", color: theme.muted, marginBottom: "10px" }}>
+        Your selected animal friend will help guide your practice.
+      </p>
+    )}
+
+    <p style={{ lineHeight: "1.5", fontSize: "15px" }}>
+      {getFeedbackMessage()}
+    </p>
+  </div>
+
+  {/* Adult-only weak areas */}
+  {!isChildMode && (
+    <div style={styles.sideCard}>
+      <h2>Weak Areas</h2>
+
+      <h3>Notes</h3>
+      {Object.keys(mistakes).length === 0 ? (
+        <p>No weak note areas yet.</p>
+      ) : (
+        <ul>
+          {Object.entries(mistakes).map(([note, count]) => (
+            <li key={note}>
+              {note}: {count} mistake{count > 1 ? "s" : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3>Intervals</h3>
+      {Object.keys(intervalMistakes).length === 0 ? (
+        <p>No weak interval areas yet.</p>
+      ) : (
+        <ul>
+          {Object.entries(intervalMistakes).map(([interval, count]) => (
+            <li key={interval}>
+              {interval}: {count} mistake{count > 1 ? "s" : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )}
+
+  {/* Hide reset during child lesson so the lesson screen stays clean */}
+  {(!isChildMode || lessonScreen !== "lesson") && (
+    <button onClick={resetProgress} style={styles.secondaryButton}>
+      Reset Progress
+    </button>
+  )}
+</aside>
         </div>
       </div>
     </div>
