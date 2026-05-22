@@ -267,6 +267,7 @@ function PitchTrainer() {
     customIntervals,
   ]);
 
+  //loads saved profile
   useEffect(() => {
     const savedProfiles = localStorage.getItem(`${accountName}_profiles`);
   
@@ -307,6 +308,7 @@ function PitchTrainer() {
     return rootFreq * Math.pow(2, semitones / 12);
   };
 
+  //sets custom intervals 
   const getAvailableIntervals = () => {
     if (difficulty === "custom") {
       return allIntervals.filter((interval) =>
@@ -364,6 +366,8 @@ function PitchTrainer() {
     return baseNotes.map((note) => `${note}${defaultOctave}`);
   };
 
+
+  //plays a note 
   const playTone = (frequency) => {
     const audioContext = new (window.AudioContext ||
       window.webkitAudioContext)();
@@ -393,7 +397,7 @@ function PitchTrainer() {
     return repeatCount >= 2;
   };
 
-
+  //dynamic learning 
   const getRecentWeakNotes = () => {
     const recentNoteMistakes = recentAnswers
       .filter((entry) => entry.mode === "note" && !entry.correct)
@@ -591,12 +595,12 @@ function PitchTrainer() {
   };
 
 
-
+  //adatpive feedback 
   const generateAdaptiveFeedback = (answers, activeMode) => {
     const recentMistakes = answers.filter((entry) => !entry.correct);
   
     if (answers.length < 3) {
-      return "Complete a few more exercises and I’ll start personalising your practice.";
+      return "Complete a few more exercises and I'll start personalising your practice.";
     }
   
     if (recentMistakes.length === 0 && answers.length >= 5) {
@@ -695,7 +699,7 @@ function PitchTrainer() {
   };
 
 
-
+  //child UI mode 
   const isChildMode = uiMode === "child";
 
   const accuracy =
@@ -738,7 +742,7 @@ function PitchTrainer() {
     (avatar) => avatar.levelRequired > level
   );
 
-
+  //profile avatars 
   const updateProfileAvatar = (emoji) => {
     if (!selectedProfile) return;
   
@@ -768,7 +772,7 @@ function PitchTrainer() {
   };
   
   
-  
+  //child mode theme
 const theme = isChildMode
   ? {
       pageBg: "linear-gradient(135deg, #dfffd6 0%, #f7fff4 45%, #c8f7b8 100%)",
@@ -932,6 +936,7 @@ statRow: {
     });
   };
 
+  //semitone distance calculator
   const getSemitoneDistance = (answerLabel, correctPitch) => {
     if (!answerLabel || !correctPitch) return null;
   
@@ -951,8 +956,9 @@ statRow: {
   
     return Math.abs(correctMidi - answerMidi);
   };
-
+  //starting session 
   const startSession = () => {
+    resetCurrentExercise();
     setSessionActive(true);
     setSessionStartTime(Date.now());
     setSessionAttempts([]);
@@ -965,12 +971,30 @@ statRow: {
     setCurrentInterval(null);
     setRootPitch(null);
   
+    
     if (isChildMode) {
       setLessonScreen("lesson");
+
     }
+
+    setTimeout(() => {
+      generateNote();
+    }, 100);
   };
 
   const checkAnswer = (answer) => {
+    if (answered) return;
+
+  if (mode === "note" && !currentPitch) {
+    setResult("Press New Sound first.");
+    return;
+  }
+
+  if (mode === "interval" && !currentInterval) {
+    setResult("Press New Sound first.");
+    return;
+  }
+
     if (!hasPlayed) {
       setResult("⚠️ Play an exercise first!");
       return;
@@ -983,14 +1007,56 @@ statRow: {
   
     let isCorrect = false;
     let attemptData = {};
-  
     if (mode === "interval") {
+      isCorrect = answer === currentInterval.name;
+    
+      attemptData = {
+        mode: "interval",
+        target: currentInterval.name,
+        interval: currentInterval.name,
+        semitones: currentInterval.semitones,
+        rootNote: rootPitch?.label || null,
+        answer: answer,
+        correct: isCorrect,
+        difficulty: difficulty,
+        semitoneDistance: null,
+        timestamp: Date.now(),
+      };
+    
+      if (isCorrect) {
+        setResult("✅ Correct!");
+        setScore(score + 1);
+    
+        const newStreak = streak + 1;
+        setStreak(newStreak);
+    
+        if (newStreak > bestStreak) {
+          setBestStreak(newStreak);
+        }
+    
+        if (newStreak > 0 && newStreak % 3 === 0) {
+          addXp(15);
+        } else {
+          addXp(10);
+        }
+      } else {
+        setResult(`⚠️ Not quite. The correct interval was ${currentInterval.name}.`);
+    
+        setStreak(0);
+        addXp(2);
+    
+        setIntervalMistakes((prev) => ({
+          ...prev,
+          [currentInterval.name]: (prev[currentInterval.name] || 0) + 1,
+        }));
+      }
+    } else {
       isCorrect = answer === currentPitch.label;
-
+    
       const semitoneDistance = isCorrect
         ? 0
         : getSemitoneDistance(answer, currentPitch);
-
+    
       attemptData = {
         mode: "note",
         target: currentPitch.label,
@@ -1002,64 +1068,18 @@ statRow: {
         semitoneDistance: semitoneDistance,
         timestamp: Date.now(),
       };
-  
+    
       if (isCorrect) {
         setResult("✅ Correct!");
         setScore(score + 1);
-  
+    
         const newStreak = streak + 1;
         setStreak(newStreak);
-  
+    
         if (newStreak > bestStreak) {
           setBestStreak(newStreak);
         }
-  
-        if (newStreak > 0 && newStreak % 3 === 0) {
-          addXp(15);
-        } else {
-          addXp(10);
-        }
-      } else {
-        setResult(`⚠️ Not quite. The correct interval was ${currentInterval.name}.`);
-  
-        setStreak(0);
-        addXp(2);
-  
-        setIntervalMistakes((prev) => ({
-          ...prev,
-          [currentInterval.name]: (prev[currentInterval.name] || 0) + 1,
-        }));
-      }
-    } else {
-      isCorrect = answer === currentPitch.label;
-  
-      const semitoneDistance = isCorrect
-  ? 0
-  : getSemitoneDistance(answer, currentPitch);
-
-    attemptData = {
-      mode: "note",
-      target: currentPitch.label,
-      note: currentPitch.note,
-      octave: currentPitch.octave,
-      answer: answer,
-      correct: isCorrect,
-      difficulty: difficulty,
-      semitoneDistance: semitoneDistance,
-      timestamp: Date.now(),
-    };
-  
-      if (isCorrect) {
-        setResult("✅ Correct!");
-        setScore(score + 1);
-  
-        const newStreak = streak + 1;
-        setStreak(newStreak);
-  
-        if (newStreak > bestStreak) {
-          setBestStreak(newStreak);
-        }
-  
+    
         if (newStreak > 0 && newStreak % 3 === 0) {
           addXp(15);
         } else {
@@ -1072,14 +1092,14 @@ statRow: {
                 attemptData.semitoneDistance === 1 ? "" : "s"
               } away.`
             : "";
-      
+    
         setResult(
           `⚠️ Not quite. The correct answer was ${currentPitch.label}.${distanceMessage}`
         );
-      
+    
         setStreak(0);
         addXp(2);
-      
+    
         setMistakes((prev) => ({
           ...prev,
           [currentPitch.label]: (prev[currentPitch.label] || 0) + 1,
@@ -1102,7 +1122,7 @@ statRow: {
 
 
   
-
+  //profile creation
   const createProfile = () => {
     const trimmedName = newProfileName.trim();
   
@@ -1155,7 +1175,7 @@ statRow: {
   );
 
 
-
+  //delete profile 
   const deleteProfile = (profileId) => {
     const profileToDelete = profiles.find((profile) => profile.id === profileId);
   
@@ -1190,7 +1210,7 @@ statRow: {
     }
   };
 
-
+  //reset progress 
   const resetProgress = () => {
     setScore(0);
     setAttempts(0);
@@ -1242,7 +1262,7 @@ statRow: {
       transform: isActive ? "scale(1.03)" : "scale(1)",
     };
   };
-
+  //custom interval button settings
   const toggleCustomInterval = (intervalName) => {
     setCustomIntervals((prev) => {
       if (prev.includes(intervalName)) {
@@ -1253,7 +1273,7 @@ statRow: {
       return [...prev, intervalName];
     });
   };
-
+  //custome octave settings 
   const toggleCustomOctave = (octave) => {
     setCustomOctaves((prev) => {
       if (prev.includes(octave)) {
@@ -1348,7 +1368,7 @@ statRow: {
       </div>
     );
   }
-
+  //session summary 
   const generateSessionSummary = () => {
     if (sessionAttempts.length === 0) {
       return {
@@ -1429,7 +1449,22 @@ statRow: {
     };
   };
 
+  const resetCurrentExercise = () => {
+    setResult("");
+    setAnswered(false);
+    setHasPlayed(false);
+    setCurrentPitch(null);
+    setCurrentNote("");
+    setCurrentInterval(null);
+    setRootPitch(null);
+  };
 
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    resetCurrentExercise();
+  };
+
+  //session edning to show feedback
   const endSession = () => {
     const summary = generateSessionSummary();
   
@@ -1655,14 +1690,14 @@ statRow: {
 
         <div className="button-row">
           <button
-            onClick={() => setMode("note")}
+            onClick={() => handleModeChange("note")}
             style={getModeButtonStyle("note")}
           >
             🎵 Note Mode
           </button>
 
           <button
-            onClick={() => setMode("interval")}
+            onClick={() => handleModeChange("interval")}
             style={getModeButtonStyle("interval")}
           >
             📊 Interval Mode
@@ -1840,7 +1875,11 @@ statRow: {
               key={item}
               onClick={() => checkAnswer(item)}
               style={styles.answerButton}
-              disabled={answered}
+              disabled={
+                answered ||
+                (mode === "note" && !currentPitch) ||
+                (mode === "interval" && !currentInterval)
+              }
             >
               {item}
             </button>
@@ -1859,14 +1898,14 @@ statRow: {
 
         <div className="button-row">
           <button
-            onClick={() => setMode("note")}
+            onClick={() => handleModeChange("note")}
             style={getModeButtonStyle("note")}
           >
             🎵 Note Mode
           </button>
 
           <button
-            onClick={() => setMode("interval")}
+            onClick={() => handleModeChange("interval")}
             style={getModeButtonStyle("interval")}
           >
             📊 Interval Mode
@@ -2048,7 +2087,11 @@ statRow: {
             key={item}
             onClick={() => checkAnswer(item)}
             style={styles.answerButton}
-            disabled={answered}
+            disabled={
+              answered ||
+              (mode === "note" && !currentPitch) ||
+              (mode === "interval" && !currentInterval)
+            }
           >
             {item}
           </button>
