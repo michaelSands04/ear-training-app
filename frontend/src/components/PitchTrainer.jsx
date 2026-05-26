@@ -628,7 +628,7 @@ function PitchTrainer() {
   
       if (!weakestNote) return null;
   
-      return `You seem to be finding ${weakestNote[0]} notes difficult. I’ll include more of these while still mixing in other practice.`;
+      return `You seem to be finding ${weakestNote[0]} notes difficult. I'll include more of these while still mixing in other practice.`;
     };
   
     const getWeakestIntervalFeedback = () => {
@@ -646,7 +646,7 @@ function PitchTrainer() {
   
       if (!weakestInterval) return null;
   
-      return `You seem to be finding ${weakestInterval[0]} intervals difficult. I’ll include more of these while still mixing in other practice.`;
+      return `You seem to be finding ${weakestInterval[0]} intervals difficult. I'll include more of these while still mixing in other practice.`;
     };
   
     // Important bit: prioritise feedback based on the current mode
@@ -674,10 +674,10 @@ function PitchTrainer() {
     }
   
     if (recentAccuracy < 50 && answers.length >= 5) {
-      return "Your recent accuracy has dropped. I’ll keep focusing on your weaker areas for now.";
+      return "Your recent accuracy has dropped. I'll keep focusing on your weaker areas for now.";
     }
   
-    return "Good progress. I’m continuing to adjust your exercises based on your answers.";
+    return "Good progress. I'm continuing to adjust your exercises based on your answers.";
   };
 
   const replayNote = () => {
